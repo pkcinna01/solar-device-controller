@@ -1,0 +1,171 @@
+#ifndef SOLAR_IFTTT_PROMETHEUS_H
+#define SOLAR_IFTTT_PROMETHEUS_H
+
+#include "automation/Sensor.h"
+
+#include <Poco/URI.h>
+#include <Poco/Net/HTTPClientSession.h>
+#include <Poco/Net/HTTPRequest.h>
+#include <Poco/Net/HTTPResponse.h>
+#include <Poco/RegularExpression.h>
+#include <Poco/NumberParser.h>
+#include <Poco/DateTime.h>
+#include <Poco/DateTimeFormat.h>
+#include <Poco/DateTimeFormatter.h>
+#include <Poco/Timespan.h>
+
+#include <string>
+#include <map>
+#include <unordered_map>
+#include <iostream>
+#include <functional>
+
+using namespace Poco;
+using namespace std;
+
+namespace Prometheus {
+
+  const URI URL("http://192.168.0.51:9202/actuator/prometheus");
+  const RegularExpression METRIC_RE("^(\\w+)([{](.*?),?[}])?\\s+(.*)", 0, true);
+  const RegularExpression METRIC_ATTRIBS_RE("^\\s*(\\w+)\\s*=\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*,?\\s*", 0, true);
+
+  struct Metric {
+    string name;
+    double value;
+    map<string, string> attributes;
+  };
+
+
+  class MetricVector : public vector<Metric> {
+  public:
+
+    double avg() {
+      double avg = 0;
+      for (auto const &metric : *this) avg += metric.value;
+      avg = avg / size();
+      return avg;
+    }
+
+    double total() {
+      double total = 0;
+      for (auto const &metric : *this) total += metric.value;
+      return total;
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, const MetricVector &metrics) {
+      for (auto metric : metrics) {
+        os << "\t" << "{";
+        for (auto attr : metric.attributes) {
+          os << attr.first << ": " << attr.second << ", ";
+        }
+        os << "} " << metric.value << endl;
+      }
+      return os;
+    }
+  };
+
+  class MetricMap : public unordered_map<string, MetricVector> {
+
+    friend std::ostream &operator<<(std::ostream &os, const MetricMap &mm) {
+      for (auto metricMapEntry : mm) {
+        string metricName = metricMapEntry.first;
+        os << metricName << ": " << endl;
+        MetricVector metrics = metricMapEntry.second;
+        os << metrics;
+      }
+      return os;
+    }
+  };
+
+
+  bool parseMetrics(istream &inputStream, MetricMap &metricsMap, function<bool(Metric)>& metricFilter) {
+    for (string line; getline(inputStream, line);) {
+      if (Prometheus::METRIC_RE.match(line)) {
+        vector<string> captures;
+        Prometheus::METRIC_RE.split(line, captures);
+        string strKey(captures[1]);
+        string strAttributes(captures[3]);
+        string strVal(captures[4]);
+        //cout << ">>>" << strKey << "{" << strAttributes << "} " << strVal << endl;
+        double value = 0;
+        if (NumberParser::tryParseFloat(strVal, value)) {
+          RegularExpression::MatchVec matches;
+          Prometheus::Metric metric;
+          metric.name = strKey;
+          metric.value = value;
+          while (Prometheus::METRIC_ATTRIBS_RE.split(strAttributes, captures)) {
+            strAttributes = strAttributes.substr(captures[0].length());
+            metric.attributes[captures[1]] = captures[2];
+          }
+          if ( metricFilter(metric) ) {
+            metricsMap[strKey].push_back(metric);
+          }
+        }
+      } else if (!line.empty() && line[0] != '#') {
+        std::cerr << "Failed parsing Prometheus record: " << line << endl;
+        return false;
+      }
+    }
+    return true;
+  }
+
+
+  class DataSource {
+  public:
+
+    Poco::URI url;
+
+    Prometheus::MetricMap metrics;
+    Poco::Net::HTTPClientSession session;
+    string path;
+    function<bool(Metric)> metricFilter;
+
+    DataSource(const Poco::URI &url, function<bool(Metric)> metricFilter ) :
+        url(url),
+        metricFilter(metricFilter),
+        session(url.getHost(), url.getPort()),
+        path(url.getPathAndQuery()) {
+
+      if (path.empty())
+        path = "/";
+    }
+
+    virtual bool loadMetrics() {
+      metrics.clear();
+      Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, path, Poco::Net::HTTPMessage::HTTP_1_1);
+      session.sendRequest(request);
+
+      Poco::Net::HTTPResponse response;
+      std::istream &rs = session.receiveResponse(response);
+
+      if (response.getStatus() == Poco::Net::HTTPResponse::HTTP_OK) {
+        if (!Prometheus::parseMetrics(rs, metrics,metricFilter)) {
+          cerr << "FAILED parsing metrics." << endl;
+          Thread::sleep(1000);
+          return false;
+        }
+      } else {
+        cerr << "FAILED" << endl;
+        Thread::sleep(1000);
+        return false;
+      }
+      //inputs.inputWatts = prometheusMetrics["solar_charger_inputPower"].total();
+      //inputs.outputWatts = prometheusMetrics["solar_charger_outputPower"].total();
+      //inputs.outputVolts = prometheusMetrics["solar_charger_outputVoltage"].avg();
+      //inputs.soc = prometheusMetrics["solar_charger_batterySOC"].avg();
+      return true;
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, const DataSource &ds) {
+      os << "DataSource{ URL:" << ds.url.toString() << endl;
+      os << ds.metrics;
+      os << "}";
+      return os;
+    }
+  };
+
+
+};
+
+
+#endif //SOLAR_IFTTT_PROMETHEUS_H

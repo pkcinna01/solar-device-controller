@@ -1,0 +1,8 @@
+# Intellij
+.idea/
+.vscode/
+build/
+cmake-*/
+*.iml
+*.iws
+

@@ -78,7 +78,7 @@ namespace Prometheus {
   };
 
 
-  bool parseMetrics(istream &inputStream, MetricMap &metricsMap, function<bool(Metric)>& metricFilter) {
+  bool parseMetrics(istream &inputStream, MetricMap &metricsMap, function<bool(const Metric&)>& metricFilter) {
     for (string line; getline(inputStream, line);) {
       if (Prometheus::METRIC_RE.match(line)) {
         vector<string> captures;
@@ -118,9 +118,9 @@ namespace Prometheus {
     Prometheus::MetricMap metrics;
     Poco::Net::HTTPClientSession session;
     string path;
-    function<bool(Metric)> metricFilter;
+    function<bool(const Metric&)> metricFilter;
 
-    DataSource(const Poco::URI &url, function<bool(Metric)> metricFilter ) :
+    DataSource(const Poco::URI &url, function<bool(const Metric)> metricFilter ) :
         url(url),
         metricFilter(metricFilter),
         session(url.getHost(), url.getPort()),
@@ -141,18 +141,14 @@ namespace Prometheus {
       if (response.getStatus() == Poco::Net::HTTPResponse::HTTP_OK) {
         if (!Prometheus::parseMetrics(rs, metrics,metricFilter)) {
           cerr << "FAILED parsing metrics." << endl;
-          Thread::sleep(1000);
+          Thread::sleep(5000);
           return false;
         }
       } else {
-        cerr << "FAILED" << endl;
-        Thread::sleep(1000);
+        cerr << "FAILED: " << response.getReason() << endl;
+        Thread::sleep(5000);
         return false;
       }
-      //inputs.inputWatts = prometheusMetrics["solar_charger_inputPower"].total();
-      //inputs.outputWatts = prometheusMetrics["solar_charger_outputPower"].total();
-      //inputs.outputVolts = prometheusMetrics["solar_charger_outputVoltage"].avg();
-      //inputs.soc = prometheusMetrics["solar_charger_batterySOC"].avg();
       return true;
     }
 

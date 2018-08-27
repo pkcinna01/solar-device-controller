@@ -37,10 +37,7 @@ namespace ifttt {
       string eventLabel = bOn ? strOnEventLabel : strOffEventLabel;
       WebHookEvent evt(eventLabel);
       if (session.sendEvent(evt)) {
-        DateTime lastEventTime = DateTime();
         bLastValueSent = bOn;
-        cout << "Turned " << (bOn ? "on" : "off") << " switch " << eventLabel << " at "
-             << DateTimeFormatter::format(lastEventTime, DateTimeFormat::ISO8601_FORMAT) << endl;
       }
     }
   };

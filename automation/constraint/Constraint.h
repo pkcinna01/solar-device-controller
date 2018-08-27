@@ -1,9 +1,10 @@
 #ifndef AUTOMATION_CONSTRAINT_H
 #define AUTOMATION_CONSTRAINT_H
 
+#include "../Automation.h"
+
 #include <string>
 #include <iostream>
-#include <chrono>
 
 using namespace std;
 
@@ -13,26 +14,16 @@ namespace automation {
 
     public:
 
-    static unsigned long millisecs() {
-      auto duration = std::chrono::high_resolution_clock::now().time_since_epoch();
-      return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-    }
-
-    virtual ~Constraint(){
-      cout << getTitle() << " deleted" << endl;
-    }
     bool bNegate = false;
 
     unsigned long passDelayMs = 0, failDelayMs = 0;
     
-    virtual float getValue() = 0;
-    virtual bool checkValue(float value) = 0;
+    virtual bool checkValue() = 0;
     virtual string getTitle() { return "Constraint"; }
     
     virtual bool test()
     {
-      float value = getValue();
-      bool bCheckPassed = checkValue(value);
+      bool bCheckPassed = checkValue();
       if ( bNegate ) {
         bCheckPassed = !bCheckPassed;
       }
@@ -55,7 +46,7 @@ namespace automation {
             setTestResult(true);
           } else {
             if ( !deferredResultCnt ) {
-              cout << "CONSTRAINT " << getTitle() << ": accept pending..." << endl;
+              logBuffer << "CONSTRAINT " << getTitle() << ": accept pending (delay:" << (passDelayMs-deferredDuration())/1000.0 << "s)..." << endl;
             }
             deferredResultCnt++;
           }
@@ -64,7 +55,7 @@ namespace automation {
             setTestResult(false);
           } else {
             if ( !deferredResultCnt ) {
-              cout << "CONSTRAINT " << getTitle() << ": reject pending..." << endl;
+              logBuffer << "CONSTRAINT " << getTitle() << ": reject pending (delay:" << (passDelayMs-deferredDuration())/1000.0 << "s)..." << endl;
             }
             deferredResultCnt++;
           }
@@ -117,20 +108,20 @@ namespace automation {
     virtual void setTestResult(bool bTestResult) {
 
       //unsigned long now = millisecs();
-      cout << "CONSTRAINT " << getTitle() << " set to " << bTestResult; // << " after " << (now-deferredTimeMs) << " millisecs";
+      logBuffer << "CONSTRAINT " << getTitle() << " set to " << bTestResult; // << " after " << (now-deferredTimeMs) << " millisecs";
       if ( bTestResult != this->bTestResult || deferredResultCnt ) {
         if ( bTestResult != this->bTestResult ) {
-          cout << " (changed)";
+          logBuffer << " (changed)";
         } else {
-          cout << " (reverting to old state after pending change)";
+          logBuffer << " (reverting to old state after pending change)";
         }
         deferredResultCnt = 0;
         //deferredTimeMs = now;
         this->bTestResult = bTestResult;
       } else {
-        cout << " (no change)";
+        logBuffer << " (no change)";
       }
-      cout << "." << endl;
+      logBuffer << "." << endl;
     }
 
     unsigned long deferredDuration() {

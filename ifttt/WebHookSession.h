@@ -3,12 +3,15 @@
 
 #include "ifttt.h"
 #include "WebHookEvent.h"
+#include "../automation/Automation.h"
 #include <Poco/Net/HTTPSClientSession.h>
 #include <Poco/Net/HTTPRequest.h>
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/StreamCopier.h>
 #include <string>
 #include <iostream>
+#include <Poco/DateTimeFormatter.h>
+#include <Poco/DateTimeFormat.h>
 
 using namespace Poco;
 using namespace Poco::Net;
@@ -37,8 +40,12 @@ namespace ifttt {
       reqBody += evt.strValue1 + "\",\"value2\":\"" + evt.strValue2 + "\",\"value3\":\"" + evt.strValue3 + "\"}";
       req.setContentLength(reqBody.length());
 
-      cout << endl << ">>>>> BEGIN IFTTT WebHook Request" << endl;
-      req.write(std::cout);
+      automation::logBuffer << ">>>>> BEGIN IFTTT WebHook Request @ " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << " <<<<<" << endl;
+      stringstream ss;
+      req.write(ss);
+      string requestLine1;
+      getline(ss,requestLine1);
+      automation::logBuffer << requestLine1;
       //cout << reqBody << endl;
 
       ostream &os = sendRequest(req);
@@ -48,8 +55,8 @@ namespace ifttt {
       istream &is = receiveResponse(resp);
       string strResp;
       Poco::StreamCopier::copyToString(is, strResp);
-      cout << "response: " << strResp << endl;
-      cout << ">>>>> END IFTTT WebHook Request" << endl;
+      automation::logBuffer << "response: " << strResp << endl;
+      automation::logBuffer << ">>>>> END IFTTT WebHook Request" << "<<<<<" << endl;
       return resp.getStatus() == HTTPResponse::HTTPStatus::HTTP_OK;
     }
   };

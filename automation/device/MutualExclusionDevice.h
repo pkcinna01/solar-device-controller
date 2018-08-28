@@ -45,6 +45,7 @@ namespace automation {
       if ( index != selectedIndex ) {
         selectTimeMs = automation::millisecs();
       }
+      selectedIndex = index;
     }
 
     virtual bool selectedExpired() {
@@ -57,7 +58,7 @@ namespace automation {
       return false;
     }
 
-    void applyConstraints(bool bIgnoreSameState = true,Constraint* pConstraint = nullptr) override {
+    void applyConstraints(bool bIgnoreSameState,Constraint* pConstraint) override {
       Device* pLastSelectedDevice = getSelected();
       Device* pSelectedDevice = updateSelectedDevice();
       if ( pLastSelectedDevice != pSelectedDevice ) {

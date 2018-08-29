@@ -55,7 +55,7 @@ namespace automation {
             setTestResult(false);
           } else {
             if ( !deferredResultCnt ) {
-              logBuffer << "CONSTRAINT " << getTitle() << ": reject pending (delay:" << (passDelayMs-deferredDuration())/1000.0 << "s)..." << endl;
+              logBuffer << "CONSTRAINT " << getTitle() << ": reject pending (delay:" << (failDelayMs-deferredDuration())/1000.0 << "s)..." << endl;
             }
             deferredResultCnt++;
           }

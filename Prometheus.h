@@ -141,12 +141,12 @@ namespace Prometheus {
       if (response.getStatus() == Poco::Net::HTTPResponse::HTTP_OK) {
         if (!Prometheus::parseMetrics(rs, metrics,metricFilter)) {
           cerr << "FAILED parsing metrics." << endl;
-          Thread::sleep(5000);
+          automation::sleep(5000);
           return false;
         }
       } else {
         cerr << "FAILED: " << response.getReason() << endl;
-        Thread::sleep(5000);
+        automation::sleep(5000);
         return false;
       }
       return true;

@@ -17,15 +17,48 @@ namespace automation {
     unsigned int selectedIndex = 0;
     unsigned long selectTimeMs = automation::millisecs();
 
-    MutualExclusionDevice(const string &id, const vector<Device *> &devices, long maxSelectedDurationMs = -1) :
+    MutualExclusionDevice(const string &id, const vector<Device *> &devices, long maxSelectedDurationMs = 30*60000) :
       Device(id),
       devices(devices),
       maxSelectedDurationMs(maxSelectedDurationMs){
     }
 
+    void applyConstraint(bool bIgnoreSameState, Constraint *pConstraint) override {
+      //Device::applyConstraint(bIgnoreSameState, pConstraint);
+      Device* pLastSelectedDevice = getSelected();
+      Device* pSelectedDevice = updateSelectedDevice();
+      if ( pLastSelectedDevice != pSelectedDevice ) {
+        pLastSelectedDevice->applyConstraint(true, &automation::FAIL_CONSTRAINT);
+      }
+      if (pSelectedDevice) {
+        pSelectedDevice->applyConstraint(bIgnoreSameState, pConstraint);
+      }
+    }
+
+    void constraintResultChanged(bool bConstraintResult) override {
+      cout << __PRETTY_FUNCTION__ << " unsupported.  Trying to set bConstrainResult: " << bConstraintResult << endl;
+    }
+
+    virtual bool testConstraint() {
+      cout << __PRETTY_FUNCTION__ << endl;
+      Device* pDevice = getSelected();
+      return pDevice ? pDevice->testConstraint() : false;
+    }
+
     virtual Device* updateSelectedDevice() {
-      if (selectedExpired() || !testSelected() ) {
+      if ( selectedExpired() ) {
         setSelectedIndex(selectedIndex + 1);
+      }
+      // test all devices to update constraint states
+      int bSelectedIndexChanged = false;
+      for( int i = 0; i < devices.size(); i++ ){
+        int index = (selectedIndex+i)%devices.size();
+        if ( devices[index]->testConstraint() && index != selectedIndex) {
+          if ( !bSelectedIndexChanged ) {
+            bSelectedIndexChanged = true;
+            setSelectedIndex(index);
+          }
+        }
       }
       return getSelected();
     }
@@ -43,7 +76,11 @@ namespace automation {
         index = 0;
       }
       if ( index != selectedIndex ) {
+        cout << __PRETTY_FUNCTION__ << " old:" << selectedIndex << ", new:" << index << endl;
         selectTimeMs = automation::millisecs();
+        //if ( pConstraint ) {
+        //  pConstraint->resetDeferredState();
+        //}
       }
       selectedIndex = index;
     }
@@ -56,25 +93,6 @@ namespace automation {
         return true;
       }
       return false;
-    }
-
-    void applyConstraints(bool bIgnoreSameState,Constraint* pConstraint) override {
-      Device* pLastSelectedDevice = getSelected();
-      Device* pSelectedDevice = updateSelectedDevice();
-      if ( pLastSelectedDevice != pSelectedDevice ) {
-        pLastSelectedDevice->applyConstraints(true,&automation::FAIL_CONSTRAINT);
-      }
-      if (pSelectedDevice) {
-        pSelectedDevice->applyConstraints(bIgnoreSameState);
-      }
-    }
-
-
-    virtual void constraintsResultChanged(bool bConstraintResult) {
-      Device* pSelectedDevice = getSelected();
-      if (pSelectedDevice) {
-        pSelectedDevice->constraintsResultChanged(bConstraintResult);
-      }
     }
   };
 

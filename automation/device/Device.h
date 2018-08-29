@@ -24,22 +24,22 @@ namespace automation {
         id(id) {
     }
 
-    virtual void applyConstraints(bool bIgnoreSameState = true, Constraint* pConstraint = nullptr) {
+    virtual void applyConstraint(bool bIgnoreSameState = true, Constraint *pConstraint = nullptr) {
       if ( !pConstraint ) {
         pConstraint = this->pConstraint;
       }
       if (!pPrerequisiteConstraint || pPrerequisiteConstraint->test() ) {
         if (pConstraint) {
           bool bTest = pConstraint->test();
-          if (!bIgnoreSameState || bTest != bConstraintsPassed) {
-            bConstraintsPassed = bTest;
-            constraintsResultChanged(bTest);
+          if (!bIgnoreSameState || bTest != bConstraintPassed) {
+            bConstraintPassed = bTest;
+            constraintResultChanged(bTest);
           }
         }
       }
     }
 
-    virtual void constraintsResultChanged(bool bConstraintResult) = 0;
+    virtual void constraintResultChanged(bool bConstraintResult) = 0;
 
     virtual bool testConstraint() {
       return pConstraint ? pConstraint->test() : true;
@@ -49,7 +49,7 @@ namespace automation {
     Constraint *pConstraint = nullptr;
     Constraint *pPrerequisiteConstraint = nullptr;
     vector<Capability *> capabilities;
-    bool bConstraintsPassed = false;
+    bool bConstraintPassed = false;
   };
 
 

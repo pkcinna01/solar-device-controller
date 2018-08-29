@@ -12,7 +12,7 @@ find_library(CRYPTO_LIB libcrypto.a REQUIRED)
 message(${SSL_LIB})
 message(${CRYPTO_LIB})
 
-add_executable(solar_ifttt main.cpp Prometheus.h)
+add_executable(solar_ifttt main.cpp Prometheus.h automation/Automation.cpp)
 
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)

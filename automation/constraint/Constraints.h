@@ -4,7 +4,6 @@
 #include "Constraint.h"
 #include "../Automation.h"
 #include "../Sensor.h"
-#include "../capability/Toggle.h"
 #include "../device/Device.h"
 
 namespace automation {
@@ -83,28 +82,6 @@ namespace automation {
       return false;
     }
   };
-
-  class ToggleStateConstraint : public Constraint {
-  public:
-    Toggle *pToggle;
-    bool bAcceptState;
-
-    explicit ToggleStateConstraint(Toggle *pToggle, bool bAcceptState = true) : pToggle(pToggle),
-                                                                                bAcceptState(bAcceptState) {
-      deferredTimeMs = automation::millisecs(); // make sure first run will apply passDelayMs (give time to prometheus to get readings)
-    }
-
-    bool checkValue() override {
-      return pToggle->getValue() == bAcceptState;
-    }
-
-    string getTitle() override {
-      string title = "Toggle must be ";
-      title += (bAcceptState ? "ON" : "OFF");
-      return title;
-    }
-  };
-
 
   template <typename T>
   class ValueConstraint : public Constraint {

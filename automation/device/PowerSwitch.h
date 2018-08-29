@@ -25,7 +25,7 @@ namespace automation {
       virtual bool isOn() = 0;
       virtual void setOn(bool bOn) = 0;
 
-      virtual void constraintsResultChanged(bool bConstraintResult) {
+      virtual void constraintResultChanged(bool bConstraintResult) {
         toggle.setValue(bConstraintResult);
       }
     };

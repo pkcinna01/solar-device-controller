@@ -16,6 +16,7 @@ namespace automation {
 
     const string name;
 
+    //TODO - remove POCO Var for Arduino code compatibility
     std::function<Poco::Dynamic::Var()> readHandler;
     std::function<void(Poco::Dynamic::Var)> writeHandler;
 
@@ -28,7 +29,24 @@ namespace automation {
 
     virtual void setValue(const Poco::Dynamic::Var &value) {
       writeHandler(value);
+      for( CapabilityListener* pListener : listeners) {
+        pListener->valueSet(this,value);
+      }
     };
+
+    struct CapabilityListener {
+      virtual void valueSet(const Capability* pCapability, double numericValue) = 0;
+    };
+
+    vector<CapabilityListener*> listeners;
+
+    virtual void addListener(CapabilityListener* pListener){
+      listeners.push_back(pListener);
+    }
+
+    virtual void removeListener(CapabilityListener* pListener){
+      listeners.erase(std::remove(listeners.begin(), listeners.end(), pListener), listeners.end());
+    }
   };
 
 }

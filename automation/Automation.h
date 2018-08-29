@@ -3,11 +3,12 @@
 
 #include <string>
 #include <sstream>
-#include <chrono>
 
 using namespace std;
 
 namespace automation {
+
+  static stringstream logBuffer;
 
   template<typename T>
   string asString(const T &t) {
@@ -16,12 +17,8 @@ namespace automation {
     return os.str();
   }
 
-  static unsigned long millisecs() {
-    auto duration = std::chrono::high_resolution_clock::now().time_since_epoch();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-  }
+  unsigned long millisecs();
 
-  static stringstream logBuffer;
-
+  void sleep(unsigned long intervalMs);
 }
 #endif

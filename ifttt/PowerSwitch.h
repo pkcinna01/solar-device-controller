@@ -15,6 +15,7 @@ namespace ifttt {
 
     string strOnEventLabel, strOffEventLabel;
 
+
     PowerSwitch(const string &id) : automation::PowerSwitch(id), bLastValueSent(false) {}
 
     virtual PowerSwitch& setOnEventLabel(const string& onLabel) {
@@ -27,12 +28,12 @@ namespace ifttt {
       return *this;
     }
 
-    virtual bool isOn() {
+    bool isOn() override {
       //TODO - Find way to query samsung smart switch from IFTTT... may need to go directly to Samsung web service
       return bLastValueSent;
     }
 
-    virtual void setOn(bool bOn) {
+    void setOn(bool bOn) override {
       WebHookSession session(ifttt::KEY);
       string eventLabel = bOn ? strOnEventLabel : strOffEventLabel;
       WebHookEvent evt(eventLabel);

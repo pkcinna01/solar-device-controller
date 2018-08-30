@@ -13,12 +13,14 @@ namespace automation {
 
     public:
 
-      Toggle toggle;
+      struct PowerSwitchToggle : automation::Toggle {
+        PowerSwitch* pPowerSwitch;
+        double getValue() override { return (double) pPowerSwitch->isOn(); }
+        void setValue(double val) override { pPowerSwitch->setOn(val!=0); }
+      } toggle;
 
       PowerSwitch(const string &id) : Device(id) {
-
-          toggle.readHandler = std::bind(&PowerSwitch::isOn,this);
-          toggle.writeHandler = std::bind(&PowerSwitch::setOn,this,std::placeholders::_1);
+          toggle.pPowerSwitch = this;
           capabilities.push_back(&toggle);
       }
 
@@ -26,6 +28,7 @@ namespace automation {
       virtual void setOn(bool bOn) = 0;
 
       virtual void constraintResultChanged(bool bConstraintResult) {
+        cout << __PRETTY_FUNCTION__ << " bConstraintResult: " << bConstraintResult << endl;
         toggle.setValue(bConstraintResult);
       }
     };

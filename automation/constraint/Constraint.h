@@ -14,8 +14,6 @@ namespace automation {
 
     public:
 
-    bool bNegate = false;
-
     unsigned long passDelayMs = 0, failDelayMs = 0;
     
     virtual bool checkValue() = 0;
@@ -24,9 +22,6 @@ namespace automation {
     virtual bool test()
     {
       bool bCheckPassed = checkValue();
-      if ( bNegate ) {
-        bCheckPassed = !bCheckPassed;
-      }
 
       if ( !deferredTimeMs ) {
         // first test so ignore delays on changing state
@@ -72,11 +67,6 @@ namespace automation {
       return bTestResult;
     }
 
-    virtual Constraint& negate() {
-      bNegate = true;
-      return *this;
-    }
-    
     virtual Constraint& setPassDelayMs(unsigned long delayMs) {
       passDelayMs = delayMs;
       return *this;

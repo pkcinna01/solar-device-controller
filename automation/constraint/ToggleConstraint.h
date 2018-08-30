@@ -17,7 +17,7 @@ namespace automation {
     }
 
     bool checkValue() override {
-      return pToggle->getValue() == bAcceptState;
+      return pToggle->asBoolean() == bAcceptState;
     }
 
     string getTitle() override {

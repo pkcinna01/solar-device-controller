@@ -4,38 +4,62 @@
 #include "Poco/Dynamic/Var.h"
 
 #include <string>
+#include <iostream>
+#include <sstream>
 #include <functional>
 
 using namespace std;
 
 namespace automation {
 
+  // Try to handle any value type but lean on double for now
+  //
   class Capability {
 
   public:
 
     const string name;
 
-    //TODO - remove POCO Var for Arduino code compatibility
-    std::function<Poco::Dynamic::Var()> readHandler;
-    std::function<void(Poco::Dynamic::Var)> writeHandler;
+    double value = 0;
 
     Capability(const string &name) : name(name) {
     };
 
-    virtual const Poco::Dynamic::Var getValue() const {
-      return readHandler();
+    virtual double getValue() = 0;
+    virtual void setValue(double dVal) = 0;
+
+    virtual bool asBoolean() {
+      return getValue() != 0;
+    }
+
+    virtual const string asString() {
+      ostringstream ss;
+      ss << getValue() << endl;
+      return ss.str();
+    }
+
+    virtual void setValue(bool bVal) {
+      setValue( (double) (bVal ? 1.0 : 0) );
     };
 
-    virtual void setValue(const Poco::Dynamic::Var &value) {
-      writeHandler(value);
+    virtual void setValue(const string& strVal) {
+      std::istringstream ss(strVal);
+      double d;
+      if (ss >> d ) {
+        setValue(d);
+      } else {
+        std::cerr << "WARNING " << __PRETTY_FUNCTION__ <<  " failed parsing " + strVal + " to double." << endl;
+      }
+    }
+
+    virtual void notifyListeners() {
       for( CapabilityListener* pListener : listeners) {
-        pListener->valueSet(this,value);
+        pListener->valueSet(this,getValue());
       }
     };
 
     struct CapabilityListener {
-      virtual void valueSet(const Capability* pCapability, double numericValue) = 0;
+      virtual void valueSet(const Capability* pCapability, double value) = 0;
     };
 
     vector<CapabilityListener*> listeners;

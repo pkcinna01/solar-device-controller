@@ -28,12 +28,13 @@ namespace automation {
       if ( !pConstraint ) {
         pConstraint = this->pConstraint;
       }
-      if (!pPrerequisiteConstraint || pPrerequisiteConstraint->test() ) {
-        if (pConstraint) {
-          bool bTest = pConstraint->test();
-          if (!bIgnoreSameState || bTest != bConstraintPassed) {
-            bConstraintPassed = bTest;
-            constraintResultChanged(bTest);
+      if (pConstraint) {
+        bool bTestResult = pConstraint->test();
+        bool bPrereqOk = !pPrerequisiteConstraint || pPrerequisiteConstraint->test();
+        if ( bPrereqOk || !bTestResult ) { // allow setting to false/fail even if prerequisite not met
+          if (!bIgnoreSameState || bTestResult != bConstraintPassed) {
+            bConstraintPassed = bTestResult;
+            constraintResultChanged(bTestResult);
           }
         }
       }

@@ -17,16 +17,18 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
 
     // considered simultaneous if last non-zero capability result happened within maxIntervalMs millisecs
     bool checkValue() override {
-      if ( !lastPassTimeMs ) {
-        return !bNegate; // Make 1st result always true from test() regardless of bNegate
-      }
       unsigned long now = millisecs();
-      return now - lastPassTimeMs <= maxIntervalMs;
+      bool bLastPassRecent = now - lastPassTimeMs <= maxIntervalMs;
+      if ( bLastPassRecent ) {
+        cout << __PRETTY_FUNCTION__ << " last PASS was recent (considered simultaneous)" << endl;
+      } else {
+        //cout << __PRETTY_FUNCTION__ << " last PASS was NOT recent (considered NOT simultaneous)" << endl;
+      }
+      return bLastPassRecent;
     }
 
     string getTitle() override {
-      string title = bNegate ? "NOT " : "";
-      title += "Simultaneous";
+      string title = "Simultaneous";
       return title;
     }
 
@@ -40,7 +42,9 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
     //
     void valueSet(const Capability* pCapability, double numericValue) override {
       if ( numericValue != 0 ) {
+        cout << __PRETTY_FUNCTION__ << " " << pCapability->name << " lastPassTimeMs was: " << lastPassTimeMs;
         lastPassTimeMs = millisecs();
+        cout << ", now: " << lastPassTimeMs << endl;
       }
     }
 

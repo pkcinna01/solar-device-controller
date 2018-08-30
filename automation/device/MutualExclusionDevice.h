@@ -2,7 +2,7 @@
 #define AUTOMATION_MUTUALEXCLUSION_DEVICE_H
 
 #include "Device.h"
-#include "../constraint/Constraints.h"
+#include "../constraint/CompositeConstraint.h"
 
 using namespace std;
 
@@ -28,6 +28,7 @@ namespace automation {
       Device* pLastSelectedDevice = getSelected();
       Device* pSelectedDevice = updateSelectedDevice();
       if ( pLastSelectedDevice != pSelectedDevice ) {
+        cout << __PRETTY_FUNCTION__ << " selected device changes so turning off " << pLastSelectedDevice->id << endl;
         pLastSelectedDevice->applyConstraint(true, &automation::FAIL_CONSTRAINT);
       }
       if (pSelectedDevice) {
@@ -50,12 +51,15 @@ namespace automation {
         setSelectedIndex(selectedIndex + 1);
       }
       // test all devices to update constraint states
-      int bSelectedIndexChanged = false;
+      int bSelectedIndexAssigned = false;
       for( int i = 0; i < devices.size(); i++ ){
         int index = (selectedIndex+i)%devices.size();
-        if ( devices[index]->testConstraint() && index != selectedIndex) {
-          if ( !bSelectedIndexChanged ) {
-            bSelectedIndexChanged = true;
+        bool bTestConstraintResult = devices[index]->testConstraint();
+        //cout << __PRETTY_FUNCTION__ << " devices[" << index << "] testConstraint() returned " << bTestConstraintResult << endl;
+        if ( !bSelectedIndexAssigned ) {
+          bSelectedIndexAssigned = true;
+          if ( index != selectedIndex ) {
+            cout << __PRETTY_FUNCTION__ << " updating selected index from " << selectedIndex << " to " << index << endl;
             setSelectedIndex(index);
           }
         }
@@ -73,6 +77,7 @@ namespace automation {
 
     virtual void setSelectedIndex(int index) {
       if (index >= devices.size()) {
+        cout << __PRETTY_FUNCTION__ << " SHOULD NEVER HAVE device index greater than list size!!!! " << index << endl;
         index = 0;
       }
       if ( index != selectedIndex ) {
@@ -89,7 +94,7 @@ namespace automation {
       unsigned long now = automation::millisecs();
       unsigned long duration = now - selectTimeMs;
       if ( duration > maxSelectedDurationMs ) {
-        cout << "Max duration exceeded for selected mutual exclusion item" << endl;
+        cout << __PRETTY_FUNCTION__ << " selected device expired " << endl;
         return true;
       }
       return false;

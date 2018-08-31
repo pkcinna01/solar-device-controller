@@ -70,6 +70,23 @@ namespace automation {
       return getValue();
     }
   };
+
+  class ScaledSensor : public Sensor {
+  public:
+    Sensor& sourceSensor;
+    float(*scaleFn)(float);
+
+    ScaledSensor(Sensor& sourceSensor, float(*scaleFn)(float)):
+      Sensor( string("SCALED(") + sourceSensor.name + ")"),
+      sourceSensor(sourceSensor),
+      scaleFn(scaleFn) {
+    }
+    virtual float getValue() const
+    {
+      return scaleFn(sourceSensor.getValue());
+    }
+
+  };
 }
 
 #endif

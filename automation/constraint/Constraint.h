@@ -97,8 +97,7 @@ namespace automation {
 
     virtual void setTestResult(bool bTestResult) {
 
-      //unsigned long now = millisecs();
-      logBuffer << "CONSTRAINT " << getTitle() << " set to " << bTestResult; // << " after " << (now-deferredTimeMs) << " millisecs";
+      logBuffer << "CONSTRAINT " << getTitle() << " set to " << bTestResult;
       if ( bTestResult != this->bTestResult || deferredResultCnt ) {
         if ( bTestResult != this->bTestResult ) {
           logBuffer << " (changed)";
@@ -106,7 +105,6 @@ namespace automation {
           logBuffer << " (reverting to old state after pending change)";
         }
         deferredResultCnt = 0;
-        //deferredTimeMs = now;
         this->bTestResult = bTestResult;
       } else {
         logBuffer << " (no change)";
@@ -116,7 +114,6 @@ namespace automation {
 
     unsigned long deferredDuration() {
         unsigned long nowMs = millisecs();
-        //cout << "deferredDuration() now: " << nowMs << ", deferredTimeMs: " << deferredTimeMs << ", duration:" << (nowMs - deferredTimeMs) << endl;
         return (nowMs - deferredTimeMs);
     }
 

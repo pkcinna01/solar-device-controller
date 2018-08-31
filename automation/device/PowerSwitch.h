@@ -15,8 +15,8 @@ namespace automation {
 
       struct PowerSwitchToggle : automation::Toggle {
         PowerSwitch* pPowerSwitch;
-        double getValue() override { return (double) pPowerSwitch->isOn(); }
-        void setValue(double val) override { pPowerSwitch->setOn(val!=0); }
+        double getValueImpl() override { return (double) pPowerSwitch->isOn(); }
+        void setValueImpl(double val) override { pPowerSwitch->setOn(val!=0); }
       } toggle;
 
       PowerSwitch(const string &id) : Device(id) {
@@ -28,7 +28,7 @@ namespace automation {
       virtual void setOn(bool bOn) = 0;
 
       virtual void constraintResultChanged(bool bConstraintResult) {
-        cout << __PRETTY_FUNCTION__ << " bConstraintResult: " << bConstraintResult << endl;
+        //cout << __PRETTY_FUNCTION__ << " bConstraintResult: " << bConstraintResult << endl;
         toggle.setValue(bConstraintResult);
       }
     };

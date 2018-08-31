@@ -30,8 +30,11 @@ namespace automation {
       }
       if (pConstraint) {
         bool bTestResult = pConstraint->test();
-        bool bPrereqOk = !pPrerequisiteConstraint || pPrerequisiteConstraint->test();
-        if ( bPrereqOk || !bTestResult ) { // allow setting to false/fail even if prerequisite not met
+        bool bPrereqFailed = false;
+        if ( pPrerequisiteConstraint ) {
+          bPrereqFailed = !pPrerequisiteConstraint->test();
+        }
+        if ( !bPrereqFailed || bPrereqFailed&&!bTestResult ) { // allow setting to false/fail even if prerequisite not met
           if (!bIgnoreSameState || bTestResult != bConstraintPassed) {
             bConstraintPassed = bTestResult;
             constraintResultChanged(bTestResult);

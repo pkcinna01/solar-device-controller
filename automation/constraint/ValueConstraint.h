@@ -9,7 +9,7 @@ using namespace std;
 
 namespace automation {
 
-  template<typename ValueSourceT, typename ValueT>
+  template<typename ValueT, typename ValueSourceT>
   class ValueConstraint : public Constraint {
 
   public:
@@ -33,14 +33,14 @@ namespace automation {
 
   };
 
-  template<typename ValueSourceT, typename ValueT>
-  class RangeConstraint : public ValueConstraint<ValueSourceT,ValueT> {
+  template<typename ValueT, typename ValueSourceT>
+  class RangeConstraint : public ValueConstraint<ValueT,ValueSourceT> {
   public:
 
     ValueT minVal, maxVal;
 
     RangeConstraint(ValueT minVal, ValueT maxVal, ValueSourceT &valueSource)
-        : ValueConstraint<ValueSourceT, ValueT>(valueSource), minVal(minVal), maxVal(maxVal) {
+        : ValueConstraint<ValueT,ValueSourceT>(valueSource), minVal(minVal), maxVal(maxVal) {
     }
 
     bool checkValue(const ValueT &value) override {
@@ -71,14 +71,14 @@ namespace automation {
     }
   };
 
-  template<typename ValueSourceT, typename ValueT>
-  class MaxConstraint : public ValueConstraint<ValueSourceT,ValueT> {
+  template<typename ValueT, typename ValueSourceT>
+  class MaxConstraint : public ValueConstraint<ValueT,ValueSourceT> {
   public:
 
     ValueT maxVal;
 
     MaxConstraint(ValueT maxVal, ValueSourceT &valueSource)
-        : ValueConstraint<ValueSourceT,ValueT>(valueSource), maxVal(maxVal) {
+        : ValueConstraint<ValueT,ValueSourceT>(valueSource), maxVal(maxVal) {
     }
 
     bool checkValue(const ValueT &value) override {
@@ -105,17 +105,17 @@ namespace automation {
 
   };
 
-  template<typename ValueSourceT, typename ValueT>
-  class MinConstraint : public ValueConstraint<ValueSourceT,ValueT> {
+  template<typename ValueT, typename ValueSourceT>
+  class MinConstraint : public ValueConstraint<ValueT,ValueSourceT> {
   public:
 
     ValueT minVal;
 
     MinConstraint(ValueT minVal, ValueSourceT &valueSource)
-        : ValueConstraint<ValueSourceT,ValueT>(valueSource), minVal(minVal) {
+        : ValueConstraint<ValueT,ValueSourceT>(valueSource), minVal(minVal) {
     }
 
-    bool checkValue(const float &value) override {
+    bool checkValue(const ValueT &value) override {
       ValueT minVal = this->minVal;
 
       if (this->deferredTimeMs) {

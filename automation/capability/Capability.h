@@ -1,8 +1,6 @@
 #ifndef AUTOMATION_CAPABILITY_H
 #define AUTOMATION_CAPABILITY_H
 
-#include "Poco/Dynamic/Var.h"
-
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -25,8 +23,17 @@ namespace automation {
     Capability(const string &name) : name(name) {
     };
 
-    virtual double getValue() = 0;
-    virtual void setValue(double dVal) = 0;
+    virtual double getValueImpl() = 0;
+    virtual void setValueImpl(double dVal) = 0;
+
+    virtual double getValue() {
+      return getValueImpl();
+    }
+
+    virtual void setValue(double dVal) {
+      setValueImpl(dVal);
+      notifyListeners();
+    };
 
     virtual bool asBoolean() {
       return getValue() != 0;

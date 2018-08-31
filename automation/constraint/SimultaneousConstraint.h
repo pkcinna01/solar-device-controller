@@ -9,7 +9,7 @@ namespace automation {
 class SimultaneousConstraint : public Constraint, public Capability::CapabilityListener {
   public:
     unsigned int maxIntervalMs = 1000;
-    unsigned int lastPassTimeMs = 0;
+    unsigned long lastPassTimeMs = 0;
 
     explicit SimultaneousConstraint(unsigned int maxIntervalMs) :
       maxIntervalMs(maxIntervalMs) {
@@ -18,7 +18,7 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
     // considered simultaneous if last non-zero capability result happened within maxIntervalMs millisecs
     bool checkValue() override {
       unsigned long now = millisecs();
-      bool bLastPassRecent = now - lastPassTimeMs <= maxIntervalMs;
+      bool bLastPassRecent = (now - lastPassTimeMs) <= maxIntervalMs;
       if ( bLastPassRecent ) {
         cout << __PRETTY_FUNCTION__ << " last PASS was recent (considered simultaneous)" << endl;
       } else {
@@ -44,7 +44,7 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
       if ( numericValue != 0 ) {
         cout << __PRETTY_FUNCTION__ << " " << pCapability->name << " lastPassTimeMs was: " << lastPassTimeMs;
         lastPassTimeMs = millisecs();
-        cout << ", now: " << lastPassTimeMs << endl;
+        cout << ", now: " << lastPassTimeMs << ", maxIntervalMs: " << maxIntervalMs << endl;
       }
     }
 

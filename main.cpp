@@ -26,9 +26,6 @@
 #define SECONDS 1000
 
 using namespace std;
-using namespace Poco;
-using namespace Poco::Dynamic;
-using namespace Poco::Net;
 using namespace automation;
 using namespace ifttt;
 
@@ -141,28 +138,30 @@ public:
     familyRoomAuxSwitch.simultaneousToggleOn.listen(&familyRoomMasterSwitch.toggle).listen(&sunroomMasterSwitch.toggle);
     sunroomMasterSwitch.simultaneousToggleOn.listen(&familyRoomMasterSwitch.toggle).listen(&familyRoomAuxSwitch.toggle);
 
-    prometheusDs.loadMetrics();
-
     unsigned long syncTimeMs = 0;
 
     bool firstTime = true;
 
-    TimeRangeConstraint solarTimeRange({0,0,0},{17,30,0});
+    TimeRangeConstraint solarTimeRange({0,0,0},{17,30,0}); // app exits at 5:30pm each day
 
     while ( solarTimeRange.test() ) {
+
       prometheusDs.loadMetrics();
 
       unsigned long nowMs = automation::millisecs();
       unsigned long elapsedSyncTimeMs = nowMs - syncTimeMs;
-      if ( elapsedSyncTimeMs > 15 * 60000 ) {
+
+      if ( elapsedSyncTimeMs > 20 * MINUTES ) {
         syncTimeMs = nowMs;
         cout << ">>>>> Synchronizing current state (sending to IFTTTT) <<<<<<" << endl;
         automation::bSynchronizing = !firstTime;
         firstTime = false;
       }
+
       bool bIgnoreSameState = syncTimeMs != nowMs; // don't send results to ifttt unless state change or time to sync
 
       for (Device *pDevice : devices) {
+
         automation::logBuffer.str("");
         automation::logBuffer.clear();
         pDevice->applyConstraint(bIgnoreSameState);
@@ -178,8 +177,8 @@ public:
 
       automation::bSynchronizing = false;
       automation::sleep(1000);
-
     };
+
     return 0;
   }
 };

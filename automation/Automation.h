@@ -10,6 +10,8 @@ namespace automation {
 
   static stringstream logBuffer;
 
+  static bool bSynchronizing = false;
+
   template<typename T>
   string asString(const T &t) {
     ostringstream os;
@@ -20,5 +22,6 @@ namespace automation {
   unsigned long millisecs();
 
   void sleep(unsigned long intervalMs);
+
 }
 #endif

@@ -14,10 +14,13 @@ namespace automation {
 
     public:
 
-        Toggle() : Capability("TOGGLE") {
+        Toggle(Device* pDevice) : Capability(pDevice) {
 
         }
 
+        const string getType() const override {
+          return "TOGGLE";
+        }
     };
 
 };

@@ -1,7 +1,3 @@
-//
-// Created by pkcinna on 8/21/18.
-//
-
 #ifndef AUTOMATION_DEVICE_H
 #define AUTOMATION_DEVICE_H
 
@@ -9,19 +5,20 @@
 #include <string>
 #include <memory>
 #include "../constraint/Constraint.h"
-#include "../capability/Capability.h"
 
 using namespace std;
 
 namespace automation {
 
+  class Capability;
+
   class Device {
   public:
 
-    string id;
+    string name;
 
-    Device(const string &id) :
-        id(id) {
+    Device(const string &name) :
+        name(name) {
     }
 
     virtual void applyConstraint(bool bIgnoreSameState = true, Constraint *pConstraint = nullptr) {
@@ -29,16 +26,18 @@ namespace automation {
         pConstraint = this->pConstraint;
       }
       if (pConstraint) {
-        bool bTestResult = pConstraint->test();
-        bool bPrereqFailed = false;
-        if ( pPrerequisiteConstraint ) {
-          bPrereqFailed = !pPrerequisiteConstraint->test();
+        if ( automation::bSynchronizing && !pConstraint->isSynchronizable() ) {
+          return;
         }
-        if ( !bPrereqFailed || bPrereqFailed&&!bTestResult ) { // allow setting to false/fail even if prerequisite not met
-          if (!bIgnoreSameState || bTestResult != bConstraintPassed) {
-            bConstraintPassed = bTestResult;
-            constraintResultChanged(bTestResult);
+        bool bTestResult = pConstraint->test();
+        if ( pPrerequisiteConstraint && !pPrerequisiteConstraint->test() ) {
+          if ( bConstraintPassed ) {
+            bConstraintPassed = false;
+            constraintResultChanged(false);
           }
+        } else if (!bIgnoreSameState || bTestResult != bConstraintPassed) {
+          bConstraintPassed = bTestResult;
+          constraintResultChanged(bTestResult);
         }
       }
     }

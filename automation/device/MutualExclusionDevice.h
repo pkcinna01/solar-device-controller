@@ -17,8 +17,8 @@ namespace automation {
     unsigned int selectedIndex = 0;
     unsigned long selectTimeMs = automation::millisecs();
 
-    MutualExclusionDevice(const string &id, const vector<Device *> &devices, long maxSelectedDurationMs = 30*60000) :
-      Device(id),
+    MutualExclusionDevice(const string &name, const vector<Device *> &devices, long maxSelectedDurationMs = 30*60000) :
+      Device(name),
       devices(devices),
       maxSelectedDurationMs(maxSelectedDurationMs){
     }
@@ -28,7 +28,7 @@ namespace automation {
       Device* pLastSelectedDevice = getSelected();
       Device* pSelectedDevice = updateSelectedDevice();
       if ( pLastSelectedDevice != pSelectedDevice ) {
-        cout << __PRETTY_FUNCTION__ << " selected device changes so turning off " << pLastSelectedDevice->id << endl;
+        cout << __PRETTY_FUNCTION__ << " selected device changes so turning off " << pLastSelectedDevice->name << endl;
         pLastSelectedDevice->applyConstraint(true, &automation::FAIL_CONSTRAINT);
       }
       if (pSelectedDevice) {

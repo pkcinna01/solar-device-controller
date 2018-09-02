@@ -26,6 +26,10 @@ namespace automation {
       return title;
     }
 
+    bool isSynchronizable() override {
+      return pConstraint->isSynchronizable();
+    }
+
   protected:
     Constraint *pConstraint;
     string outerTitle;

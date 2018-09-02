@@ -14,17 +14,18 @@ namespace automation {
     public:
 
       struct PowerSwitchToggle : automation::Toggle {
+        PowerSwitchToggle(Device* parent) : Toggle(parent){};
         PowerSwitch* pPowerSwitch;
-        double getValueImpl() override { return (double) pPowerSwitch->isOn(); }
+        double getValueImpl() const override { return (double) pPowerSwitch->isOn(); }
         void setValueImpl(double val) override { pPowerSwitch->setOn(val!=0); }
       } toggle;
 
-      PowerSwitch(const string &id) : Device(id) {
+      PowerSwitch(const string &id) : Device(id), toggle(this) {
           toggle.pPowerSwitch = this;
           capabilities.push_back(&toggle);
       }
 
-      virtual bool isOn() = 0;
+      virtual bool isOn() const = 0;
       virtual void setOn(bool bOn) = 0;
 
       virtual void constraintResultChanged(bool bConstraintResult) {

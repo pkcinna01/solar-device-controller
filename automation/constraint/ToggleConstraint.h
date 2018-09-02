@@ -21,8 +21,8 @@ namespace automation {
     }
 
     string getTitle() override {
-      string title = "Toggle must be ";
-      title += (bAcceptState ? "ON" : "OFF");
+      string title = Constraint::getTitle();
+      title += (bAcceptState ? " ON" : " OFF");
       return title;
     }
   };

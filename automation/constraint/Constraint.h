@@ -15,10 +15,11 @@ namespace automation {
     public:
 
     unsigned long passDelayMs = 0, failDelayMs = 0;
-    
+
     virtual bool checkValue() = 0;
     virtual string getTitle() { return "Constraint"; }
-    
+    virtual bool isSynchronizable() { return true; }
+
     virtual bool test()
     {
       bool bCheckPassed = checkValue();

@@ -8,23 +8,28 @@ namespace automation {
 
 class SimultaneousConstraint : public Constraint, public Capability::CapabilityListener {
   public:
-    unsigned int maxIntervalMs = 1000;
-    unsigned long lastPassTimeMs = 0;
+    unsigned long maxIntervalMs;
 
-    explicit SimultaneousConstraint(unsigned int maxIntervalMs) :
-      maxIntervalMs(maxIntervalMs) {
+    SimultaneousConstraint(unsigned int maxIntervalMs, Capability* pCapability, double targetValue=1.0) :
+      maxIntervalMs(maxIntervalMs), pCapability(pCapability), targetValue(targetValue){
+    }
+
+    // don't check for simultaneous events if doing a bulk synchronize of state
+    bool isSynchronizable() override {
+      return false;
     }
 
     // considered simultaneous if last non-zero capability result happened within maxIntervalMs millisecs
     bool checkValue() override {
       unsigned long now = millisecs();
-      bool bLastPassRecent = (now - lastPassTimeMs) <= maxIntervalMs;
-      if ( bLastPassRecent ) {
-        cout << __PRETTY_FUNCTION__ << " last PASS was recent (considered simultaneous)" << endl;
-      } else {
-        //cout << __PRETTY_FUNCTION__ << " last PASS was NOT recent (considered NOT simultaneous)" << endl;
+      unsigned long elapsedMs = now - lastPassTimeMs;
+      bool bLastPassRecent = elapsedMs <= maxIntervalMs;
+      if ( pCapability->getValue() != targetValue && (!pLastPassCapability || pLastPassCapability->getValue() == targetValue) && bLastPassRecent) {
+        //logBuffer << __PRETTY_FUNCTION__ << "******* last PASS was simultaneous. *******" << endl;
+        //logBuffer << "\telapsedMs:" <<elapsedMs << ", maxIntervalMs:" << maxIntervalMs << endl;
+        return true;
       }
-      return bLastPassRecent;
+      return false;
     }
 
     string getTitle() override {
@@ -41,13 +46,25 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
     // t3.addListener(simultaneousConstraint);
     //
     void valueSet(const Capability* pCapability, double numericValue) override {
-      if ( numericValue != 0 ) {
-        cout << __PRETTY_FUNCTION__ << " " << pCapability->name << " lastPassTimeMs was: " << lastPassTimeMs;
+      if ( automation::bSynchronizing ) {
+        return;
+      }
+      if ( numericValue == targetValue ) {
         lastPassTimeMs = millisecs();
-        cout << ", now: " << lastPassTimeMs << ", maxIntervalMs: " << maxIntervalMs << endl;
+        pLastPassCapability = pCapability;
       }
     }
 
+    virtual SimultaneousConstraint& listen( Capability* c ) {
+      c->addListener(this);
+      return *this;
+    }
+
+  protected:
+    unsigned long lastPassTimeMs = 0;
+    Capability* pCapability;
+    const Capability* pLastPassCapability = nullptr;
+    double targetValue; // set to 1 if check for simultaneous toggle ON and set to 0 for toggle OFF
   };
 
 }

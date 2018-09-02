@@ -11,6 +11,7 @@
 #include "automation/constraint/ToggleConstraint.h"
 #include "automation/constraint/SimultaneousConstraint.h"
 #include "automation/constraint/TimeRangeConstraint.h"
+#include "automation/constraint/TransitionDurationConstraint.h"
 #include "automation/device/Device.h"
 #include "automation/device/MutualExclusionDevice.h"
 
@@ -46,9 +47,6 @@ public:
     static SensorFn batteryBankVoltage("Average Battery Terminal Voltage from Chargers",
                                      []()->float{ return prometheusDs.metrics["solar_charger_outputVoltage"].total(); });
 
-    static SimultaneousConstraint simultaneousToggleOn(60*1000);
-    static NotConstraint notSimultaneousToggleOn(&simultaneousToggleOn);
-
     static vector<automation::PowerSwitch *> devices;
 
     // If 500 watts should be allocated to each switch (air conditioner), this scale function
@@ -61,46 +59,49 @@ public:
 
     static struct FamilyRoomMasterSwitch : ifttt::PowerSwitch {
 
-      MinConstraint<float,Sensor> minSoc = {20, soc};
-      MinConstraint<float,Sensor> minGeneratedWatts = {400, scaledGeneratedPower};
-      AndConstraint enoughPower = {{&minSoc, &minGeneratedWatts}};
-      MinConstraint<float,Sensor> fullSoc = {95, soc};
-      OrConstraint fullSocOrEnoughPower = {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange = { {10,0,0},{17,30,00} };
-      AndConstraint familyRmMasterConstraints = {{&timeRange,&notSimultaneousToggleOn,&fullSocOrEnoughPower}};
+      MinConstraint<float,Sensor> minSoc {30, soc};
+      MinConstraint<float,Sensor> minGeneratedWatts {400, scaledGeneratedPower};
+      AndConstraint enoughPower {{&minSoc, &minGeneratedWatts}};
+      MinConstraint<float,Sensor> fullSoc {100, soc};
+      OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
+      TimeRangeConstraint timeRange { {9,30,0},{17,30,00} };
+      SimultaneousConstraint simultaneousToggleOn {60*SECONDS,&toggle};
+      NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
+      TransitionDurationConstraint minOffDuration{5*MINUTES,&toggle,0,1};
+      AndConstraint familyRmMasterConstraints {{&minOffDuration,&timeRange,&notSimultaneousToggleOn,&fullSocOrEnoughPower}};
 
       FamilyRoomMasterSwitch() :
-          ifttt::PowerSwitch("Family Room Master Switch (1st Air Conditioner and Fan)") {
-
+          ifttt::PowerSwitch("Family Room Master") {
         setOnEventLabel("family_room_master_switch_on");
         setOffEventLabel("family_room_master_switch_off");
-
-        fullSoc.setPassDelayMs(7*MINUTES).setFailDelayMs(30000).setFailMargin(55);
-        minSoc.setPassDelayMs(3*MINUTES).setFailDelayMs(30000).setFailMargin(10).setPassMargin(55);
-        minGeneratedWatts.setPassDelayMs(3*MINUTES).setFailDelayMs(2*MINUTES);
+        fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(30*SECONDS).setFailMargin(55);
+        minSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(30*SECONDS).setFailMargin(15).setPassMargin(45);
+        minGeneratedWatts.setPassDelayMs(1*MINUTES).setFailDelayMs(1*MINUTES).setFailMargin(200);
+        //familyRmMasterConstraints.setPassDelayMs(5*MINUTES);
         pConstraint = &familyRmMasterConstraints;
       }
     } familyRoomMasterSwitch;
 
     static ToggleStateConstraint familyRoomMasterMustBeOn(&familyRoomMasterSwitch.toggle);
-    familyRoomMasterMustBeOn.setPassDelayMs(3*60000);
+    familyRoomMasterMustBeOn.setPassDelayMs(3*MINUTES);
 
     static struct FamilyRoomAuxSwitch : ifttt::PowerSwitch {
 
-      MinConstraint<float,Sensor> minSoc = {50, soc};
-      MinConstraint<float,Sensor> minGeneratedWatts = {425, scaledGeneratedPower};
-      AndConstraint enoughPower = {{&minSoc, &minGeneratedWatts}};
-      TimeRangeConstraint timeRange = { {12,0,0},{16,30,00} };
-      AndConstraint familyRmAuxConstraints = {{&timeRange,&notSimultaneousToggleOn,&enoughPower}};
+      MinConstraint<float,Sensor> minSoc {70, soc};
+      MinConstraint<float,Sensor> minGeneratedWatts {475, scaledGeneratedPower};
+      AndConstraint enoughPower {{&minSoc, &minGeneratedWatts}};
+      TimeRangeConstraint timeRange { {12,0,0},{16,0,0} };
+      SimultaneousConstraint simultaneousToggleOn {60*SECONDS,&toggle};
+      NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
+      TransitionDurationConstraint minOffDuration{20*MINUTES,&toggle,0,1};
+      AndConstraint familyRmAuxConstraints {{&minOffDuration,&timeRange,&notSimultaneousToggleOn,&enoughPower}};
 
       FamilyRoomAuxSwitch() :
-          ifttt::PowerSwitch("Family Room Auxiliary Switch (2nd Air Conditioner)") {
-
+          ifttt::PowerSwitch("Family Room Auxiliary") {
         setOnEventLabel("family_room_aux_switch_on");
         setOffEventLabel("family_room_aux_switch_off");
-
-        minSoc.setPassDelayMs(6*MINUTES).setFailDelayMs(5*SECONDS).setFailMargin(35).setPassMargin(35);
-        minGeneratedWatts.setPassDelayMs(5*MINUTES).setFailDelayMs(30*SECONDS).setFailMargin(350);
+        minSoc.setPassDelayMs(3*MINUTES).setFailDelayMs(10*SECONDS).setFailMargin(50).setPassMargin(5);
+        minGeneratedWatts.setPassDelayMs(3*MINUTES).setFailDelayMs(10*SECONDS).setFailMargin(350);
         pPrerequisiteConstraint = &familyRoomMasterMustBeOn;
         pConstraint = &familyRmAuxConstraints;
       }
@@ -109,22 +110,24 @@ public:
 
     static struct SunroomMasterSwitch : ifttt::PowerSwitch {
 
-      MinConstraint<float,Sensor> minSoc = {25, soc};
-      MinConstraint<float,Sensor> minGeneratedWatts = {450, scaledGeneratedPower};
-      AndConstraint enoughPower = {{&minSoc, &minGeneratedWatts}};
-      MinConstraint<float,Sensor> fullSoc = {95, soc};
-      OrConstraint fullSocOrEnoughPower = {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange = { {8,30,0},{17,00,00} };
-      AndConstraint sunroomMasterConstraints = {{&timeRange,&notSimultaneousToggleOn,&fullSocOrEnoughPower}};
-      SunroomMasterSwitch() :
-          ifttt::PowerSwitch("Sunroom Master Switch (3rd Air Conditioner and Fan)") {
+      MinConstraint<float,Sensor> minSoc {30, soc};
+      MinConstraint<float,Sensor> minGeneratedWatts {400, scaledGeneratedPower};
+      AndConstraint enoughPower {{&minSoc, &minGeneratedWatts}};
+      MinConstraint<float,Sensor> fullSoc {100, soc};
+      OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
+      TimeRangeConstraint timeRange { {8,30,0},{17,00,00} };
+      SimultaneousConstraint simultaneousToggleOn {60*SECONDS,&toggle};
+      NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
+      TransitionDurationConstraint minOffDuration{5*MINUTES,&toggle,0,1};
+      AndConstraint sunroomMasterConstraints {{&minOffDuration,&timeRange,&notSimultaneousToggleOn,&fullSocOrEnoughPower}};
 
+      SunroomMasterSwitch() :
+          ifttt::PowerSwitch("Sunroom Master") {
         setOnEventLabel("sunroom_master_switch_on");
         setOffEventLabel("sunroom_master_switch_off");
-
-        fullSoc.setPassDelayMs(10 * MINUTES).setFailDelayMs(10*SECONDS).setFailMargin(25);
-        minSoc.setPassDelayMs(5*MINUTES).setFailDelayMs(15*SECONDS).setFailMargin(10).setPassMargin(55);
-        minGeneratedWatts.setFailDelayMs(MINUTES).setPassDelayMs(4*MINUTES).setFailMargin(200);
+        fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(20*SECONDS).setFailMargin(55);
+        minSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(20*SECONDS).setFailMargin(15).setPassMargin(45);
+        minGeneratedWatts.setPassDelayMs(1*MINUTES).setFailDelayMs(20*SECONDS).setFailMargin(200);
         pConstraint = &sunroomMasterConstraints;
       }
     } sunroomMasterSwitch;
@@ -134,21 +137,28 @@ public:
     devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch}; //mutualExclusionDevice};
 
     // SimultaneousConstraint needs to be a listener of each capability it will watch as a group
-    familyRoomMasterSwitch.toggle.addListener(&simultaneousToggleOn);
-    familyRoomAuxSwitch.toggle.addListener(&simultaneousToggleOn);
-    sunroomMasterSwitch.toggle.addListener(&simultaneousToggleOn);
+    familyRoomMasterSwitch.simultaneousToggleOn.listen(&familyRoomAuxSwitch.toggle).listen(&sunroomMasterSwitch.toggle);
+    familyRoomAuxSwitch.simultaneousToggleOn.listen(&familyRoomMasterSwitch.toggle).listen(&sunroomMasterSwitch.toggle);
+    sunroomMasterSwitch.simultaneousToggleOn.listen(&familyRoomMasterSwitch.toggle).listen(&familyRoomAuxSwitch.toggle);
 
     prometheusDs.loadMetrics();
 
     unsigned long syncTimeMs = 0;
 
-    do {
+    bool firstTime = true;
+
+    TimeRangeConstraint solarTimeRange({0,0,0},{17,30,0});
+
+    while ( solarTimeRange.test() ) {
       prometheusDs.loadMetrics();
 
       unsigned long nowMs = automation::millisecs();
       unsigned long elapsedSyncTimeMs = nowMs - syncTimeMs;
       if ( elapsedSyncTimeMs > 15 * 60000 ) {
         syncTimeMs = nowMs;
+        cout << ">>>>> Synchronizing current state (sending to IFTTTT) <<<<<<" << endl;
+        automation::bSynchronizing = !firstTime;
+        firstTime = false;
       }
       bool bIgnoreSameState = syncTimeMs != nowMs; // don't send results to ifttt unless state change or time to sync
 
@@ -160,15 +170,16 @@ public:
 
         if ( !strLogBuffer.empty() ) {
           cout << "=====================================================================" << endl;
-          cout << "DEVICE: " << pDevice->id << endl;
+          cout << "DEVICE: " << pDevice->name << endl;
           cout << strLogBuffer;
           cout << "TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
         }
       }
 
+      automation::bSynchronizing = false;
       automation::sleep(1000);
 
-    } while (true);
+    };
     return 0;
   }
 };

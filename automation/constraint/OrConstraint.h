@@ -3,6 +3,8 @@
 
 #include "CompositeConstraint.h"
 
+#include <algorithm>
+
 namespace automation {
 
   class OrConstraint : public CompositeConstraint {
@@ -12,11 +14,14 @@ namespace automation {
     }
 
     bool checkValue() override {
-      for (Constraint *pConstraint : constraints) {
+      auto filter = [](Constraint* pConstraint)->bool{ return !(automation::bSynchronizing && !pConstraint->isSynchronizable()); };
+      vector<Constraint*> filteredConstraints;
+      std::copy_if(constraints.begin(), constraints.end(), std::back_inserter(filteredConstraints), filter);
+      for (Constraint *pConstraint : filteredConstraints) {
         if (pConstraint->test())
           return true;
       }
-      return false;
+      return filteredConstraints.empty();
     }
   };
 

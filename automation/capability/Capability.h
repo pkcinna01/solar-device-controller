@@ -1,6 +1,8 @@
 #ifndef AUTOMATION_CAPABILITY_H
 #define AUTOMATION_CAPABILITY_H
 
+#include "../device/Device.h"
+
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -16,17 +18,16 @@ namespace automation {
 
   public:
 
-    const string name;
-
     double value = 0;
 
-    Capability(const string &name) : name(name) {
+    Capability(const Device* pDevice) : pDevice(pDevice) {
     };
 
-    virtual double getValueImpl() = 0;
+    virtual double getValueImpl() const = 0;
     virtual void setValueImpl(double dVal) = 0;
+    virtual const string getType() const = 0;
 
-    virtual double getValue() {
+    virtual double getValue() const {
       return getValueImpl();
     }
 
@@ -35,11 +36,11 @@ namespace automation {
       notifyListeners();
     };
 
-    virtual bool asBoolean() {
+    virtual bool asBoolean() const {
       return getValue() != 0;
     }
 
-    virtual const string asString() {
+    virtual const string asString() const {
       ostringstream ss;
       ss << getValue() << endl;
       return ss.str();
@@ -78,6 +79,24 @@ namespace automation {
     virtual void removeListener(CapabilityListener* pListener){
       listeners.erase(std::remove(listeners.begin(), listeners.end(), pListener), listeners.end());
     }
+
+    virtual const string getTitle() const {
+      string str(getType());
+      str += " '";
+      str += pDevice->name;
+      str += "'";
+      return str;
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, const Capability &c) {
+      os << c.getTitle() << " = " << c.asString();
+      return os;
+    }
+
+  protected:
+
+    const Device* pDevice;
+
   };
 
 }

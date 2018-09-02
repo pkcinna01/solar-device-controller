@@ -45,7 +45,7 @@ namespace automation {
     }
 
     friend std::ostream &operator<<(std::ostream &os, const Sensor &s) {
-      os << "Sensor{ name: " << s.name << ", value: " << s.getValue() << " }";
+      os << "Sensor{ strType: " << s.name << ", value: " << s.getValue() << " }";
       return os;
     }
   };

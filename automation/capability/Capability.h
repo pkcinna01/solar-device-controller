@@ -56,7 +56,7 @@ namespace automation {
       if (ss >> d ) {
         setValue(d);
       } else {
-        std::cerr << "WARNING " << __PRETTY_FUNCTION__ <<  " failed parsing " + strVal + " to double." << endl;
+        cout << "WARNING " << __PRETTY_FUNCTION__ <<  " failed parsing " + strVal + " to double." << endl;
       }
     }
 

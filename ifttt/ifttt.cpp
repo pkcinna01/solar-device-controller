@@ -1,12 +1,13 @@
-//
-// All non-arduino specific implementations for automation namespace here for now...
-//
-
 #include <chrono>
 #include <Poco/Thread.h>
-#include "Sensor.h"
+#include "../automation/Sensor.h"
+
+#include <sstream>
+
+// platform specifics
 
 namespace automation {
+
   unsigned long millisecs() {
     auto duration = std::chrono::high_resolution_clock::now().time_since_epoch();
     return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
@@ -21,5 +22,19 @@ namespace automation {
     cout << *this << endl;
   }
 
-}
+  static stringstream logBufferImpl;
 
+  std::ostream& getLogBufferImpl() {
+    return logBufferImpl;
+  }
+
+  void clearLogBuffer() {
+    logBufferImpl.str("");
+    logBufferImpl.clear();
+  }
+
+  void logBufferToString( string& dest) {
+    dest = logBufferImpl.str();
+  }
+
+}

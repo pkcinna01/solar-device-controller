@@ -28,6 +28,10 @@ namespace ifttt {
       return *this;
     }
 
+    void setup() override {
+
+    }
+
     bool isOn() const override {
       //TODO - Find way to query samsung smart switch from IFTTT... may need to go directly to Samsung web service
       return bLastValueSent;

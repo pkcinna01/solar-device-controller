@@ -13,6 +13,7 @@ namespace automation {
   public:
     vector<Constraint *> constraints;
     string strJoinName;
+    bool bApplyAfterShortCircuit = true;
 
     CompositeConstraint(const string &strJoinName, const vector<Constraint *> &constraints) :
         strJoinName(strJoinName),

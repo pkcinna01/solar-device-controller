@@ -21,7 +21,7 @@ namespace automation {
     }
 
     string getTitle() override {
-      string title = Constraint::getTitle();
+      string title = pToggle->getTitle();
       title += (bAcceptState ? " ON" : " OFF");
       return title;
     }

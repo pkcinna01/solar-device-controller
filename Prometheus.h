@@ -9,10 +9,6 @@
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/RegularExpression.h>
 #include <Poco/NumberParser.h>
-#include <Poco/DateTime.h>
-#include <Poco/DateTimeFormat.h>
-#include <Poco/DateTimeFormatter.h>
-#include <Poco/Timespan.h>
 
 #include <string>
 #include <map>

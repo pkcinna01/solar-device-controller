@@ -18,7 +18,7 @@ namespace automation {
     string name;
 
     Device(const string &name) :
-        name(name) {
+        name(name), pConstraint(nullptr) {
     }
 
     virtual void applyConstraint(bool bIgnoreSameState = true, Constraint *pConstraint = nullptr) {
@@ -48,10 +48,21 @@ namespace automation {
       return pConstraint ? pConstraint->test() : true;
     }
 
+    virtual Constraint* getConstraint() {
+      return pConstraint;
+    }
+
+    virtual void setConstraint(Constraint* pConstraint) {
+      this->pConstraint = pConstraint;
+    }
+    
+    virtual void setup() = 0;
+
   protected:
     Constraint *pConstraint = nullptr;
     Constraint *pPrerequisiteConstraint = nullptr;
     vector<Capability *> capabilities;
+    bool bInitialized = false;
     bool bConstraintPassed = false;
   };
 

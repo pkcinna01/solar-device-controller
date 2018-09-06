@@ -3,6 +3,7 @@
 
 #include "Device.h"
 #include "../capability/Toggle.h"
+#include "../ToggleSensor.h"
 
 #include <functional>
 
@@ -14,15 +15,22 @@ namespace automation {
     public:
 
       struct PowerSwitchToggle : automation::Toggle {
-        PowerSwitchToggle(Device* parent) : Toggle(parent){};
+        PowerSwitchToggle(PowerSwitch* pPowerSwitch) : Toggle(pPowerSwitch), pPowerSwitch(pPowerSwitch) {};
         PowerSwitch* pPowerSwitch;
-        double getValueImpl() const override { return (double) pPowerSwitch->isOn(); }
-        void setValueImpl(double val) override { pPowerSwitch->setOn(val!=0); }
+        double getValueImpl() const override {
+          //cout << __PRETTY_FUNCTION__ << endl;
+          return (double) pPowerSwitch->isOn();
+        }
+        void setValueImpl(double val) override {
+          //cout << __PRETTY_FUNCTION__ << endl;
+          pPowerSwitch->setOn(val!=0);
+        }
       } toggle;
 
-      PowerSwitch(const string &id) : Device(id), toggle(this) {
-          toggle.pPowerSwitch = this;
-          capabilities.push_back(&toggle);
+      ToggleSensor toggleSensor; // allow the switch state to be seen as a sensor
+
+      PowerSwitch(const string &name) : Device(name), toggle(this), toggleSensor(&toggle) {
+        capabilities.push_back(&toggle);
       }
 
       virtual bool isOn() const = 0;

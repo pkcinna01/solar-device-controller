@@ -12,14 +12,19 @@ namespace automation {
     }
 
     bool checkValue() override {
+      bool bResult = true;
       for (Constraint *pConstraint : constraints) {
         if ( automation::bSynchronizing && !pConstraint->isSynchronizable() ) {
           continue;
         }
-        if (!pConstraint->test())
-          return false;
+        if (!pConstraint->test()) {
+          bResult = false;
+          if ( !bApplyAfterShortCircuit ) {
+            break;
+          }
+        }
       }
-      return true;
+      return bResult;
     }
   };
 }

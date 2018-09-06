@@ -17,11 +17,16 @@ namespace automation {
       auto filter = [](Constraint* pConstraint)->bool{ return !(automation::bSynchronizing && !pConstraint->isSynchronizable()); };
       vector<Constraint*> filteredConstraints;
       std::copy_if(constraints.begin(), constraints.end(), std::back_inserter(filteredConstraints), filter);
+      bool bResult = filteredConstraints.empty();
       for (Constraint *pConstraint : filteredConstraints) {
-        if (pConstraint->test())
-          return true;
+        if (pConstraint->test()) {
+          bResult = true;
+          if ( !bApplyAfterShortCircuit ) {
+            break;
+          }
+        }
       }
-      return filteredConstraints.empty();
+      return bResult;
     }
   };
 

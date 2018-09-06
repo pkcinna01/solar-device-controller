@@ -8,7 +8,15 @@ using namespace std;
 
 namespace automation {
 
-  static stringstream logBuffer;
+  const unsigned int MINUTES = 60000;
+  const unsigned int SECONDS = 1000;
+
+  std::ostream& getLogBufferImpl();
+  void clearLogBuffer();
+  void logBufferToString( string& strDest );
+
+  static std::ostream& logBuffer = getLogBufferImpl();
+
 
   static bool bSynchronizing = false;
 

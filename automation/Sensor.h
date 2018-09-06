@@ -6,6 +6,7 @@
 #include <string>
 #include <functional>
 #include <iostream>
+#include <vector>
 
 namespace automation {
 
@@ -20,11 +21,16 @@ namespace automation {
 
     virtual void setup()
     {
+      bInitialized = true;
     }
 
     virtual float getValue() const = 0;
 
     virtual void print(int depth = 0);
+
+    virtual const string& getTitle() const {
+      return name;
+    }
 
     template<typename ObjectPtr,typename MethodPtr>
     static float sample(ObjectPtr obj, MethodPtr method, unsigned int cnt = 5, unsigned int intervalMs = 50)
@@ -44,10 +50,19 @@ namespace automation {
       return sum/cnt;
     }
 
+    static bool compareValues(const Sensor* lhs, const Sensor* rhs);
+
+    static float average(const vector<Sensor*>& sensors);
+    static float minimum(const vector<Sensor*>& sensors);
+    static float maximum(const vector<Sensor*>& sensors);
+
     friend std::ostream &operator<<(std::ostream &os, const Sensor &s) {
-      os << "Sensor{ strType: " << s.name << ", value: " << s.getValue() << " }";
+      os << "\"Sensor\": { name: \"" << s.name << "\", value: " << s.getValue() << " }";
       return os;
     }
+
+  protected:
+    bool bInitialized = false;
   };
 
   class SensorFn : public Sensor {
@@ -87,6 +102,7 @@ namespace automation {
     }
 
   };
+
 }
 
 #endif

@@ -16,6 +16,8 @@ namespace automation {
   public:
 
     string name;
+    Constraint *pConstraint = nullptr;
+    vector<Capability *> capabilities;
 
     Device(const string &name) :
         name(name), pConstraint(nullptr) {
@@ -44,6 +46,8 @@ namespace automation {
 
     virtual void constraintResultChanged(bool bConstraintResult) = 0;
 
+    virtual void print(int depth = 0);
+
     virtual bool testConstraint() {
       return pConstraint ? pConstraint->test() : true;
     }
@@ -57,6 +61,11 @@ namespace automation {
     }
     
     virtual void setup() = 0;
+
+    friend std::ostream &operator<<(std::ostream &os, const Device &d) {
+      os << "\"Device\": { \"name\": \"" << d.name << "\" }";
+      return os;
+    }
 
   protected:
     Constraint *pConstraint = nullptr;

@@ -11,6 +11,8 @@ namespace ifttt {
   class PowerSwitch : public automation::PowerSwitch {
   public:
 
+    const int MAX_RETRY_CNT = 2;
+
     bool bLastValueSent;
 
     string strOnEventLabel, strOffEventLabel;
@@ -41,8 +43,12 @@ namespace ifttt {
       WebHookSession session(ifttt::KEY);
       string eventLabel = bOn ? strOnEventLabel : strOffEventLabel;
       WebHookEvent evt(eventLabel);
-      if (session.sendEvent(evt)) {
-        bLastValueSent = bOn;
+
+      for( int i = 0; i < MAX_RETRY_CNT; i++) {
+        if (session.sendEvent(evt)) {
+          bLastValueSent = bOn;
+          break;
+        }
       }
     }
   };

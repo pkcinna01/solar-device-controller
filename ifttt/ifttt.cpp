@@ -1,6 +1,8 @@
 #include <chrono>
 #include <Poco/Thread.h>
 #include "../automation/Sensor.h"
+#include "../automation/capability/Capability.h"
+#include "../automation/device/Device.h"
 
 #include <sstream>
 
@@ -18,7 +20,19 @@ namespace automation {
     //delay(intervalMs);
   }
 
+  bool isTimeValid() {
+    return true; // assume time always usable for server applications (not arduino)
+  }
+
   void Sensor::print(int depth) {
+    cout << *this << endl;
+  }
+
+  void Device::print(int depth) {
+    cout << *this << endl;
+  }
+
+  void Capability::print(int depth) {
     cout << *this << endl;
   }
 

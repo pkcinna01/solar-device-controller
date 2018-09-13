@@ -9,6 +9,7 @@
 #include <Poco/Net/HTTPResponse.h>
 #include <Poco/RegularExpression.h>
 #include <Poco/NumberParser.h>
+#include <Poco/Exception.h>
 
 #include <string>
 #include <map>
@@ -128,6 +129,7 @@ namespace Prometheus {
 
     virtual bool loadMetrics() {
       metrics.clear();
+      try {
       Poco::Net::HTTPRequest request(Poco::Net::HTTPRequest::HTTP_GET, path, Poco::Net::HTTPMessage::HTTP_1_1);
       session.sendRequest(request);
 
@@ -144,6 +146,10 @@ namespace Prometheus {
         cerr << "FAILED: " << response.getReason() << endl;
         automation::sleep(5000);
         return false;
+      }
+      } catch (Poco::Exception& ex) {
+        cerr << "FAILED loading prometheus metrics." << endl;
+        cerr << ex.displayText() << endl;
       }
       return true;
     }

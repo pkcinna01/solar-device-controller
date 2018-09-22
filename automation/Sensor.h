@@ -57,6 +57,7 @@ namespace automation {
     static float average(const vector<Sensor*>& sensors);
     static float minimum(const vector<Sensor*>& sensors);
     static float maximum(const vector<Sensor*>& sensors);
+    static float delta(const vector<Sensor*>& sensors);
 
     friend std::ostream &operator<<(std::ostream &os, const Sensor &s) {
       os << "\"Sensor\": { name: \"" << s.name << "\", value: " << s.getValue() << " }";
@@ -103,6 +104,13 @@ namespace automation {
       return scaleFn(sourceSensor.getValue());
     }
 
+  };
+
+  class Sensors : public AutomationVector<Sensor*> {
+  public:
+    Sensors(){}
+    Sensors( vector<Sensor*>& sensors ) : AutomationVector<Sensor*>(sensors) {}
+    Sensors( vector<Sensor*> sensors ) : AutomationVector<Sensor*>(sensors) {}
   };
 
 }

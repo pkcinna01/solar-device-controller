@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include "../constraint/Constraint.h"
+#include "../constraint/BooleanConstraint.h"
 
 using namespace std;
 
@@ -47,6 +48,7 @@ namespace automation {
     virtual void constraintResultChanged(bool bConstraintResult) = 0;
 
     virtual void print(int depth = 0);
+    virtual void printVerbose(int depth = 0 ) { print(depth); }
 
     virtual bool testConstraint() {
       return pConstraint ? pConstraint->test() : true;
@@ -61,18 +63,24 @@ namespace automation {
     }
     
     virtual void setup() = 0;
-
+    
     friend std::ostream &operator<<(std::ostream &os, const Device &d) {
       os << "\"Device\": { \"name\": \"" << d.name << "\" }";
       return os;
     }
 
   protected:
-    Constraint *pConstraint = nullptr;
     Constraint *pPrerequisiteConstraint = nullptr;
-    vector<Capability *> capabilities;
     bool bInitialized = false;
     bool bConstraintPassed = false;
+  };
+
+
+  class Devices : public AutomationVector<Device*> {
+  public:
+    Devices(){}
+    Devices( vector<Device*>& devices ) : AutomationVector<Device*>(devices) {}
+    Devices( vector<Device*> devices ) : AutomationVector<Device*>(devices) {}
   };
 
 

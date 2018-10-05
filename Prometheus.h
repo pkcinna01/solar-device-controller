@@ -22,7 +22,7 @@ using namespace std;
 
 namespace Prometheus {
 
-  const URI URL("http://192.168.0.51:9202/actuator/prometheus");
+  const URI URL("http://solar:9202/actuator/prometheus");
   const RegularExpression METRIC_RE("^(\\w+)([{](.*?),?[}])?\\s+(.*)", 0, true);
   const RegularExpression METRIC_ATTRIBS_RE("^\\s*(\\w+)\\s*=\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*,?\\s*", 0, true);
 

@@ -26,6 +26,14 @@ using namespace std;
 using namespace automation;
 using namespace ifttt;
 
+// Summer window AC units use 525 (AC + Fan)
+// Winter heaters use 575 watts
+#define DEFAULT_APPLIANCE_WATTS 575
+
+// Summer window AC units have expensive startup so accept a lower min voltage (24.00).
+// Winter heaters min volts 24.50 so batteries have better chance of recovery at end of the day
+#define DEFAULT_MIN_VOLTS 24.50
+
 class IftttApp : public Poco::Util::Application {
 
 public:
@@ -58,13 +66,13 @@ public:
 
     static struct FamilyRoomMasterSwitch : ifttt::PowerSwitch {
 
-      MinConstraint<float,Sensor&> minVoltage {23.5, batteryBankVoltage};
-      MinConstraint<float,Sensor&> minSoc {35, soc};
-      MinConstraint<float,Sensor&> minGeneratedWatts {450, scaledGeneratedPower};
+      MinConstraint<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
+      MinConstraint<float,Sensor&> minSoc {45, soc};
+      MinConstraint<float,Sensor&> minGeneratedWatts {DEFAULT_APPLIANCE_WATTS, scaledGeneratedPower};
       AndConstraint enoughPower {{&minSoc, &minGeneratedWatts}};
       MinConstraint<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {10,00,0},{17,30,00} };
+      TimeRangeConstraint timeRange { {10,00,0},{16,30,00} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
@@ -75,9 +83,9 @@ public:
         setOnEventLabel("family_room_master_switch_on");
         setOffEventLabel("family_room_master_switch_off");
         fullSoc.setPassDelayMs(30*SECONDS).setFailDelayMs(90*SECONDS).setFailMargin(25);
-        minSoc.setPassDelayMs(2*MINUTES).setFailDelayMs(90*SECONDS).setFailMargin(10).setPassMargin(15);
-        minGeneratedWatts.setPassDelayMs(30*SECONDS).setFailDelayMs(120*SECONDS).setFailMargin(50).setPassMargin(100);
-        minVoltage.setFailDelayMs(15*SECONDS);
+        minSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(120*SECONDS).setFailMargin(20).setPassMargin(5);
+        minGeneratedWatts.setPassDelayMs(30*SECONDS).setFailDelayMs(120*SECONDS).setFailMargin(125).setPassMargin(100);
+        minVoltage.setFailDelayMs(15*SECONDS).setFailMargin(0.5);
         //familyRmMasterConstraints.setPassDelayMs(5*MINUTES);
         pConstraint = &familyRmMasterConstraints;
       }
@@ -85,9 +93,9 @@ public:
 
     static struct SunroomMasterSwitch : ifttt::PowerSwitch {
 
-      MinConstraint<float,Sensor&> minVoltage {23.5, batteryBankVoltage};
-      MinConstraint<float,Sensor&> minSoc {35, soc};
-      MinConstraint<float,Sensor&> minGeneratedWatts {450, scaledGeneratedPower};
+      MinConstraint<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
+      MinConstraint<float,Sensor&> minSoc {45, soc};
+      MinConstraint<float,Sensor&> minGeneratedWatts {DEFAULT_APPLIANCE_WATTS, scaledGeneratedPower};
       AndConstraint enoughPower {{&minSoc, &minGeneratedWatts}};
       MinConstraint<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
@@ -102,8 +110,9 @@ public:
         setOnEventLabel("sunroom_master_switch_on");
         setOffEventLabel("sunroom_master_switch_off");
         fullSoc.setPassDelayMs(30*SECONDS).setFailDelayMs(120*SECONDS).setFailMargin(25);
-        minSoc.setPassDelayMs(2*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(10).setPassMargin(15);
-        minGeneratedWatts.setPassDelayMs(30*SECONDS).setFailDelayMs(45*SECONDS).setFailMargin(50).setPassMargin(100);
+        minSoc.setPassDelayMs(2*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(20).setPassMargin(10);
+        minGeneratedWatts.setPassDelayMs(30*SECONDS).setFailDelayMs(45*SECONDS).setFailMargin(125).setPassMargin(100);
+        minVoltage.setFailDelayMs(5*SECONDS).setFailMargin(0.5);
         //minVoltage.setFailDelayMs(15*SECONDS);
         pConstraint = &sunroomMasterConstraints;
       }
@@ -117,8 +126,8 @@ public:
     static struct FamilyRoomAuxSwitch : ifttt::PowerSwitch {
 
       MinConstraint<float,Sensor&> minSoc {45, soc};
-      MinConstraint<float,Sensor&> minVoltage {23.75, batteryBankVoltage};
-      MinConstraint<float,Sensor&> minGeneratedWatts {525, scaledGeneratedPower};
+      MinConstraint<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
+      MinConstraint<float,Sensor&> minGeneratedWatts {DEFAULT_APPLIANCE_WATTS, scaledGeneratedPower};
       AndConstraint enoughPower {{&minSoc, &minGeneratedWatts}};
       MinConstraint<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
@@ -197,6 +206,18 @@ public:
 
       automation::sleep(1000);
     };
+    cout << "====================================================" << endl;
+    cout << "Turning off all switches (application is exiting)..." << endl;
+    cout << "====================================================" << endl;
+    for (automation::PowerSwitch *pPowerSwitch : devices) {
+          automation::clearLogBuffer();
+          bool bOn = pPowerSwitch->isOn();
+          cout << "DEVICE '" << pPowerSwitch->name << "' = " << (bOn? "ON" : "OFF") << endl;
+          pPowerSwitch->setOn(false);
+          string strLogBuffer;
+          automation::logBufferToString(strLogBuffer);
+          cout << strLogBuffer;
+    }
     cout << "Exiting " << args[0] << endl;
     return 0;
   }

@@ -18,7 +18,7 @@ namespace ifttt {
     string strOnEventLabel, strOffEventLabel;
 
 
-    PowerSwitch(const string &id) : automation::PowerSwitch(id), bLastValueSent(false) {}
+    PowerSwitch(const string &id, float requiredWatts) : automation::PowerSwitch(id,requiredWatts), bLastValueSent(false) {}
 
     virtual PowerSwitch& setOnEventLabel(const string& onLabel) {
       strOnEventLabel = onLabel;

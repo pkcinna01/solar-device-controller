@@ -10,7 +10,13 @@
 
 namespace automation {
 
-  class Sensor {
+  template<typename ValueT>
+  class ValueHolder {
+  public:
+    virtual ValueT getValue() const = 0;
+  };
+
+  class Sensor : public ValueHolder<float> {
   public:
 
     std::string name;
@@ -23,8 +29,6 @@ namespace automation {
     {
       bInitialized = true;
     }
-
-    virtual float getValue() const = 0;
 
     virtual void print(int depth = 0);
 
@@ -68,6 +72,7 @@ namespace automation {
     bool bInitialized = false;
   };
 
+
   class SensorFn : public Sensor {
   public:
 
@@ -89,19 +94,23 @@ namespace automation {
     }
   };
 
-  class ScaledSensor : public Sensor {
+
+  // Use another sensor as the source for data but transform it based on a custom function
+  class TransformSensor : public Sensor {
   public:
     Sensor& sourceSensor;
-    float(*scaleFn)(float);
+    float(*transformFn)(float);
+    std::string transformName;
 
-    ScaledSensor(Sensor& sourceSensor, float(*scaleFn)(float)):
-      Sensor( string("SCALED(") + sourceSensor.name + ")"),
+    TransformSensor(const std::string& transformName, Sensor& sourceSensor, float(*transformFn)(float)):
+      Sensor( transformName + "(" + sourceSensor.name + ")"),
+      transformName(transformName),
       sourceSensor(sourceSensor),
-      scaleFn(scaleFn) {
+      transformFn(transformFn) {
     }
     virtual float getValue() const
     {
-      return scaleFn(sourceSensor.getValue());
+      return transformFn(sourceSensor.getValue());
     }
 
   };

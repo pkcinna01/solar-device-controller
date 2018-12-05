@@ -62,7 +62,7 @@ namespace automation {
 
     string getTitle() override {
       string rtn(this->valueSource.name);
-      rtn += " RANGE(";
+      rtn += " Range(";
       rtn += asString(minVal);
       rtn += ",";
       rtn += asString(maxVal);
@@ -71,18 +71,82 @@ namespace automation {
     }
   };
 
+
+  template<typename ValueT>
+  class ConstantValueHolder : public ValueHolder<ValueT>  {
+  public:
+    ValueT val;
+    
+    ConstantValueHolder(ValueT val)
+      : val(val) {
+    }
+    
+    ValueT getValue() const override {
+      return val;
+    }
+  };
+
   template<typename ValueT, typename ValueSourceT>
-  class MaxConstraint : public ValueConstraint<ValueT,ValueSourceT> {
+  class ThresholdValueConstraint : public ValueConstraint<ValueT,ValueSourceT> {
   public:
 
-    ValueT maxVal;
+    ValueHolder<ValueT>* pThreshold;
 
-    MaxConstraint(ValueT maxVal, ValueSourceT &valueSource)
-        : ValueConstraint<ValueT,ValueSourceT>(valueSource), maxVal(maxVal) {
+    bool bDeleteThreshold;
+
+    ThresholdValueConstraint(ValueHolder<ValueT>& threshold, ValueSourceT &valueSource)
+        : ValueConstraint<ValueT,ValueSourceT>(valueSource)
+        , pThreshold(&threshold)
+        , bDeleteThreshold(false) {
+    }
+
+
+    virtual std::string& getType() = 0;
+
+    string getTitle() override {
+      string rtn(this->valueSource.name);
+      rtn += " ";
+      rtn += getType();
+      rtn += "(";
+      rtn += asString(pThreshold->getValue());
+      rtn += ")";
+      return rtn;
+    }
+
+    virtual ~ThresholdValueConstraint() {
+      if ( bDeleteThreshold ) {        
+        delete pThreshold;
+      }
+    }
+
+    protected:
+    ThresholdValueConstraint(ValueHolder<ValueT>* pThreshold, ValueSourceT &valueSource, bool bDeleteThreshold = true )
+        : ValueConstraint<ValueT,ValueSourceT>(valueSource)
+        , pThreshold(pThreshold)
+        , bDeleteThreshold(bDeleteThreshold) {
+    }
+
+  };
+  
+  template<typename ValueT, typename ValueSourceT>
+  class AtMost : public ThresholdValueConstraint<ValueT,ValueSourceT> {
+  public:
+
+    AtMost(ValueHolder<ValueT>& threshold, ValueSourceT &valueSource)
+        : ThresholdValueConstraint<ValueT,ValueSourceT>(threshold,valueSource) {
+    }
+
+    AtMost(ValueT threshold, ValueSourceT &valueSource)
+        : AtMost<ValueT,ValueSourceT>(new ConstantValueHolder<ValueT>(threshold),valueSource) {
+    }
+
+    std::string& getType() override {
+      static std::string strType("AtMost");
+      return strType;
     }
 
     bool checkValue(const ValueT &value) override {
-      ValueT maxVal = this->maxVal;
+      ValueT maxVal = this->pThreshold->getValue();
 
       if (this->deferredTimeMs) {
         if (this->bTestResult) {
@@ -94,29 +158,27 @@ namespace automation {
 
       return value <= maxVal;
     }
-
-    string getTitle() override {
-      string rtn(this->valueSource.name);
-      rtn += " MAX(";
-      rtn += asString(maxVal);
-      rtn += ")";
-      return rtn;
-    }
-
   };
 
   template<typename ValueT, typename ValueSourceT>
-  class MinConstraint : public ValueConstraint<ValueT,ValueSourceT> {
+  class AtLeast : public ThresholdValueConstraint<ValueT,ValueSourceT> {
   public:
 
-    ValueT minVal;
+    AtLeast(ValueHolder<ValueT>& threshold, ValueSourceT &valueSource)
+        : ThresholdValueConstraint<ValueT,ValueSourceT>(threshold,valueSource) {
+    }
 
-    MinConstraint(ValueT minVal, ValueSourceT &valueSource)
-        : ValueConstraint<ValueT,ValueSourceT>(valueSource), minVal(minVal) {
+    AtLeast(ValueT threshold, ValueSourceT &valueSource)
+        : ThresholdValueConstraint<ValueT,ValueSourceT>(new ConstantValueHolder<ValueT>(threshold),valueSource,true) {
+    }
+
+    std::string& getType() override {
+      static std::string strType("AtLeast");
+      return strType;
     }
 
     bool checkValue(const ValueT &value) override {
-      ValueT minVal = this->minVal;
+      ValueT minVal = this->pThreshold->getValue();
 
       if (this->deferredTimeMs) {
         if (this->bTestResult) {
@@ -127,15 +189,6 @@ namespace automation {
       }
       return value >= minVal;
     }
-
-    string getTitle() override {
-      string rtn(this->valueSource.name);
-      rtn += " MIN(";
-      rtn += asString(minVal);
-      rtn += ")";
-      return rtn;
-    }
-
   };
 
 }

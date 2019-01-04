@@ -19,9 +19,10 @@ namespace automation {
     string name;
     Constraint *pConstraint = nullptr;
     vector<Capability *> capabilities;
+    bool bError;
 
     Device(const string &name) :
-        name(name), pConstraint(nullptr) {
+        name(name), pConstraint(nullptr), bError(false) {
     }
 
     virtual void applyConstraint(bool bIgnoreSameState = true, Constraint *pConstraint = nullptr) {

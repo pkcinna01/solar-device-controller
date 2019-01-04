@@ -17,7 +17,6 @@ namespace ifttt {
 
     string strOnEventLabel, strOffEventLabel;
 
-
     PowerSwitch(const string &id, float requiredWatts) : automation::PowerSwitch(id,requiredWatts), bLastValueSent(false) {}
 
     virtual PowerSwitch& setOnEventLabel(const string& onLabel) {
@@ -40,16 +39,22 @@ namespace ifttt {
     }
 
     void setOn(bool bOn) override {
-      WebHookSession session(ifttt::KEY);
+      bError = false;
       string eventLabel = bOn ? strOnEventLabel : strOffEventLabel;
       WebHookEvent evt(eventLabel);
-
+      unique_ptr<WebHookSession> pSession(new WebHookSession(ifttt::KEY));
       for( int i = 0; i < MAX_RETRY_CNT; i++) {
-        if (session.sendEvent(evt)) {
-          bLastValueSent = bOn;
-          break;
+        try {
+          if (pSession->sendEvent(evt)) {
+            bLastValueSent = bOn;
+            return;
+          }
+        } catch (Poco::Exception &ex)  {
+          automation::logBuffer << "FAILED turning " << ( bOn ? "ON" : "OFF" ) << " switch '" << name << "' (IFTTT host: " << pSession->getHost() << ")." << endl;
+          automation::logBuffer << ex.displayText() << endl;
         }
       }
+      bError = true;
     }
   };
 }

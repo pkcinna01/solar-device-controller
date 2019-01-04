@@ -30,13 +30,11 @@ using namespace ifttt;
 // Winter heaters use 575 watts
 #define DEFAULT_APPLIANCE_WATTS 575
 
-// Summer window AC units have expensive startup so accept a lower min voltage (24.00).
-// Winter heaters min volts 24.50 so batteries have better chance of recovery at end of the day
-#define DEFAULT_MIN_VOLTS 24.50
+#define DEFAULT_MIN_VOLTS 24.80
 
-#define LIGHTS_SET_1_WATTS 75
+#define LIGHTS_SET_1_WATTS 120
 
-#define MIN_SOC_PERCENT 45
+#define MIN_SOC_PERCENT 48.25
 
 class IftttApp : public Poco::Util::Application {
 
@@ -122,7 +120,6 @@ public:
         minSoc.setPassDelayMs(2*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(20).setPassMargin(10);
         haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(45*SECONDS).setFailMargin(125).setPassMargin(100);
         minVoltage.setFailDelayMs(5*SECONDS).setFailMargin(0.5);
-        //minVoltage.setFailDelayMs(15*SECONDS);
         pConstraint = &sunroomMasterConstraints;
       }
     } sunroomMasterSwitch;
@@ -140,7 +137,7 @@ public:
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
       AtLeast<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {8,30,0},{16,30,0} };
+      TimeRangeConstraint timeRange { {8,30,0},{15,30,0} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
@@ -154,6 +151,7 @@ public:
         fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(30*SECONDS).setFailMargin(15);
         minSoc.setPassDelayMs(3*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(25);
         haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(25);
+        minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
         //pPrerequisiteConstraint = &allMastersMustBeOn;
         pConstraint = &familyRmAuxConstraints;
       }
@@ -170,9 +168,11 @@ public:
 
     bool bFirstTime = true;
 
-    TimeRangeConstraint solarTimeRange({0,0,0},{16,30,0}); // app exits at 4:30pm each day
-
+    TimeRangeConstraint solarTimeRange({0,0,0},{16,00,0}); // app exits at 4:00pm each day
+    
     while ( solarTimeRange.test() ) {
+
+      int iDeviceErrorCnt = 0;
 
       for (automation::PowerSwitch *pPowerSwitch : devices) {
 
@@ -182,6 +182,9 @@ public:
         automation::clearLogBuffer();
         bool bIgnoreSameState = !bFirstTime;
         pPowerSwitch->applyConstraint(bIgnoreSameState);
+        if ( pPowerSwitch->bError ) {
+          iDeviceErrorCnt++;
+        }
         string strLogBuffer;
         automation::logBufferToString(strLogBuffer);
 
@@ -205,6 +208,9 @@ public:
           bool bOn = pPowerSwitch->isOn();
           cout << "DEVICE '" << pPowerSwitch->name << "' = " << (bOn? "ON" : "OFF") << endl;
           pPowerSwitch->setOn(bOn);
+          if ( pPowerSwitch->bError ) {
+            iDeviceErrorCnt++;
+          }
           string strLogBuffer;
           automation::logBufferToString(strLogBuffer);
           cout << strLogBuffer;
@@ -215,7 +221,8 @@ public:
         bFirstTime = false;
       }
 
-      automation::sleep(1000);
+      // wait 60 seconds if any request fails (occasional DNS failure or network connectivity)
+      automation::sleep( iDeviceErrorCnt ? 60*1000 : 1000 ); 
     };
     cout << "====================================================" << endl;
     cout << "Turning off all switches (application is exiting)..." << endl;

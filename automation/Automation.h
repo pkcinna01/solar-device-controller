@@ -83,7 +83,7 @@ namespace automation {
       }
       for( const T& item : *this ) {
         for( const string& namePattern : nameVec) {
-          if (isMatch(namePattern.c_str(),item->name.c_str()) ) {
+          if (WildcardMatcher::test(namePattern.c_str(),item->name.c_str()) ) {
             resultVec.push_back(item);
             break;
           }

@@ -13,7 +13,6 @@
 #include "automation/constraint/TimeRangeConstraint.h"
 #include "automation/constraint/TransitionDurationConstraint.h"
 #include "automation/device/Device.h"
-#include "automation/device/MutualExclusionDevice.h"
 
 #include "Prometheus.h"
 

@@ -21,6 +21,26 @@ namespace automation {
     vector<Capability *> capabilities;
     bool bError;
 
+    enum class Mode { OFF, ON=0x1, AUTO=0x2 };
+    Mode mode = Mode::AUTO;
+    
+    static Mode parseMode(const char* pszMode)  {
+      if (!strcasecmp("OFF", pszMode))
+          return Mode::OFF;
+      if (!strcasecmp("ON", pszMode))
+        return Mode::ON;
+      if (!strcasecmp("AUTO", pszMode))
+        return Mode::AUTO;
+    }
+
+    static string modeToString(Mode mode) {
+      switch(mode) {
+        case Mode::OFF: return "OFF";
+        case Mode::ON: return "ON";
+        default: return "AUTO";
+      }
+    }
+
     Device(const string &name) :
         name(name), pConstraint(nullptr), bError(false) {
     }
@@ -33,15 +53,20 @@ namespace automation {
         if ( automation::bSynchronizing && !pConstraint->isSynchronizable() ) {
           return;
         }
-        bool bTestResult = pConstraint->test();
-        if ( pPrerequisiteConstraint && !pPrerequisiteConstraint->test() ) {
-          if ( bConstraintPassed ) {
-            bConstraintPassed = false;
-            constraintResultChanged(false);
+        if ( mode == Mode::AUTO ) {
+          bool bTestResult = pConstraint->test();
+          if ( pPrerequisiteConstraint && !pPrerequisiteConstraint->test() ) {
+            if ( bConstraintPassed ) {
+              bConstraintPassed = false;
+              constraintResultChanged(false);
+            }
+          } else if (!bIgnoreSameState || bTestResult != bConstraintPassed) {
+            bConstraintPassed = bTestResult;
+            constraintResultChanged(bTestResult);
           }
-        } else if (!bIgnoreSameState || bTestResult != bConstraintPassed) {
-          bConstraintPassed = bTestResult;
-          constraintResultChanged(bTestResult);
+        }
+        else {
+          pConstraint->overrideTestResult(mode == Mode::ON);
         }
       }
     }
@@ -50,10 +75,6 @@ namespace automation {
 
     virtual void print(int depth = 0);
     virtual void printVerbose(int depth = 0 ) { print(depth); }
-
-    virtual bool testConstraint() {
-      return pConstraint ? pConstraint->test() : true;
-    }
 
     virtual Constraint* getConstraint() {
       return pConstraint;

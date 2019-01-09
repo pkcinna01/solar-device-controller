@@ -15,28 +15,7 @@ namespace automation {
 
     public:
 
-    typedef unsigned char Mode;
-    static const Mode OFF=0x0, ON=0x1, AUTO=0x2;
-
-    static Mode parseMode(const char* pszMode)  {
-        if (!strcasecmp("OFF", pszMode))
-          return Constraint::OFF;
-      if (!strcasecmp("ON", pszMode))
-        return Constraint::ON;
-      if (!strcasecmp("AUTO", pszMode))
-        return Constraint::AUTO;
-    }
-
-    static string modeToString(Mode mode) {
-      if ( mode == OFF ) {
-        return "OFF";
-      } else if ( mode == ON ) {
-        return "ON";
-      }
-      return "AUTO";
-    }
-
-    Mode mode = AUTO;
+    
     unsigned long passDelayMs = 0, failDelayMs = 0;
 
     virtual bool checkValue() = 0;
@@ -45,14 +24,6 @@ namespace automation {
 
     virtual bool test()
     {
-      if ( mode == ON ) {
-        deferredTimeMs = 0;
-        return (bTestResult=true);
-      } else if ( mode == OFF ) {
-        deferredTimeMs = 0;
-        return (bTestResult=false);
-      }
-
       bool bCheckPassed = checkValue();
 
       if ( !deferredTimeMs ) {
@@ -121,6 +92,13 @@ namespace automation {
 
     virtual void resetDeferredTime() {
       deferredTimeMs = 0;
+    }
+
+    virtual void overrideTestResult(bool bNewResult) {
+      resetDeferredTime();
+      if ( bNewResult != bTestResult ) {
+        setTestResult(bNewResult);
+      }
     }
 
     protected:

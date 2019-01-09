@@ -42,7 +42,7 @@ namespace ifttt {
       bError = false;
       string eventLabel = bOn ? strOnEventLabel : strOffEventLabel;
       WebHookEvent evt(eventLabel);
-      unique_ptr<WebHookSession> pSession(new WebHookSession(ifttt::KEY));
+      auto pSession = std::make_unique<WebHookSession>(ifttt::KEY);
       for( int i = 0; i < MAX_RETRY_CNT; i++) {
         try {
           if (pSession->sendEvent(evt)) {

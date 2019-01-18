@@ -1,7 +1,7 @@
 #ifndef ARDUINO_SOLAR_SKETCH_COOLINGFAN_H
 #define ARDUINO_SOLAR_SKETCH_COOLINGFAN_H
 
-#include "../Sensor.h"
+#include "../sensor/Sensor.h"
 #include "PowerSwitch.h"
 #include "../constraint/ValueConstraint.h"
 
@@ -20,7 +20,7 @@ namespace automation {
         PowerSwitch(name),
         tempSensor(tempSensor),
         minTemp(onTemp,tempSensor) {
-      minTemp.setFailMargin(onTemp-offTemp).setFailDelayMs(minDurationMs); // temp below min is considered a fail which turns off fan
+      minTemp.setFailMargin(onTemp-offTemp).setFailDelayMs(minDurationMs);
       pConstraint = &minTemp;
     }
 

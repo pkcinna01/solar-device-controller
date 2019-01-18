@@ -13,68 +13,34 @@ namespace automation {
 
   class Capability;
 
-  class Device {
+  class Device : public AttributeContainer {
   public:
 
-    string name;
     Constraint *pConstraint = nullptr;
     vector<Capability *> capabilities;
     bool bError;
 
-    enum class Mode { OFF, ON=0x1, AUTO=0x2 };
-    Mode mode = Mode::AUTO;
-    
-    static Mode parseMode(const char* pszMode)  {
-      if (!strcasecmp("OFF", pszMode))
-          return Mode::OFF;
-      if (!strcasecmp("ON", pszMode))
-        return Mode::ON;
-      if (!strcasecmp("AUTO", pszMode))
-        return Mode::AUTO;
-    }
-
-    static string modeToString(Mode mode) {
-      switch(mode) {
-        case Mode::OFF: return "OFF";
-        case Mode::ON: return "ON";
-        default: return "AUTO";
-      }
-    }
-
     Device(const string &name) :
-        name(name), pConstraint(nullptr), bError(false) {
+        AttributeContainer(name), pConstraint(nullptr), bError(false) {
     }
 
-    virtual void applyConstraint(bool bIgnoreSameState = true, Constraint *pConstraint = nullptr) {
-      if ( !pConstraint ) {
-        pConstraint = this->pConstraint;
-      }
-      if (pConstraint) {
-        if ( automation::bSynchronizing && !pConstraint->isSynchronizable() ) {
-          return;
-        }
-        if ( mode == Mode::AUTO ) {
-          bool bTestResult = pConstraint->test();
-          if ( pPrerequisiteConstraint && !pPrerequisiteConstraint->test() ) {
-            if ( bConstraintPassed ) {
-              bConstraintPassed = false;
-              constraintResultChanged(false);
-            }
-          } else if (!bIgnoreSameState || bTestResult != bConstraintPassed) {
-            bConstraintPassed = bTestResult;
-            constraintResultChanged(bTestResult);
-          }
-        }
-        else {
-          pConstraint->overrideTestResult(mode == Mode::ON);
-        }
-      }
-    }
+    RTTI_GET_TYPE_DECL;
+    
+    virtual void applyConstraint(bool bIgnoreSameState = true, Constraint *pConstraint = nullptr);
 
     virtual void constraintResultChanged(bool bConstraintResult) = 0;
 
-    virtual void print(int depth = 0);
-    virtual void printVerbose(int depth = 0 ) { print(depth); }
+    virtual void print(int depth, bool bVerbose);
+
+    virtual void print(int depth = 0) { 
+      print(depth,false); 
+    }
+    
+    virtual void printVerbose(int depth = 0 ) { 
+      print(depth,true); 
+    }
+
+    virtual void printVerboseExtra(int depth = 1);
 
     virtual Constraint* getConstraint() {
       return pConstraint;
@@ -86,15 +52,15 @@ namespace automation {
     
     virtual void setup() = 0;
     
+    virtual bool setAttribute(const char* pszKey, const char* pszVal, ostream* pRespStream = nullptr) override;
+    
     friend std::ostream &operator<<(std::ostream &os, const Device &d) {
-      os << "\"Device\": { \"name\": \"" << d.name << "\" }";
+      os << F("\"Device\": { \"name\": \"") << d.name << "\" }";
       return os;
     }
 
   protected:
-    Constraint *pPrerequisiteConstraint = nullptr;
     bool bInitialized = false;
-    bool bConstraintPassed = false;
   };
 
 

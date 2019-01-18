@@ -2,6 +2,7 @@
 #include "ifttt/WebHookSession.h"
 #include "ifttt/WebHookEvent.h"
 #include "ifttt/PowerSwitch.h"
+#include "xmonit/PowerSwitch.h"
 #include "automation/Automation.h"
 #include "automation/constraint/NotConstraint.h"
 #include "automation/constraint/AndConstraint.h"
@@ -17,7 +18,7 @@
 #include "Prometheus.h"
 
 #include "Poco/Util/Application.h"
-
+#include <signal.h>
 #include <iostream>
 #include <numeric>
 
@@ -32,8 +33,12 @@ using namespace ifttt;
 #define DEFAULT_MIN_VOLTS 24.80
 
 #define LIGHTS_SET_1_WATTS 120
+#define LIGHTS_SET_2_WATTS 120
 
 #define MIN_SOC_PERCENT 48.25
+
+bool iSignalCaught = 0;
+static void signalHandlerFn (int val) { iSignalCaught = val; }
 
 class IftttApp : public Poco::Util::Application {
 
@@ -70,6 +75,12 @@ public:
       return rtnWatts;
     });
 
+    static struct InverterWallOutlet1 : xmonit::PowerSwitch {
+      InverterWallOutlet1() :
+          xmonit::PowerSwitch("Sunroom Wall Outlet 1",DEFAULT_APPLIANCE_WATTS) {
+      };
+    } inverterWallOutlet1;
+
     static struct FamilyRoomMasterSwitch : ifttt::PowerSwitch {
 
       AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
@@ -92,7 +103,6 @@ public:
         minSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(120*SECONDS).setFailMargin(20).setPassMargin(5);
         haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(120*SECONDS).setFailMargin(125).setPassMargin(100);
         minVoltage.setFailDelayMs(15*SECONDS).setFailMargin(0.5);
-        //familyRmMasterConstraints.setPassDelayMs(5*MINUTES);
         pConstraint = &familyRmMasterConstraints;
       }
     } familyRoomMasterSwitch;
@@ -123,11 +133,6 @@ public:
       }
     } sunroomMasterSwitch;
 
-    static ToggleStateConstraint familyRoomMasterMustBeOn(&familyRoomMasterSwitch.toggle);
-    static ToggleStateConstraint sunroomMasterMustBeOn(&sunroomMasterSwitch.toggle);
-    //static AndConstraint allMastersMustBeOn( { &familyRoomMasterMustBeOn, &sunroomMasterMustBeOn} );
-    //allMastersMustBeOn.setPassDelayMs(5*MINUTES);
-
     static struct FamilyRoomAuxSwitch : ifttt::PowerSwitch {
 
       AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
@@ -151,25 +156,55 @@ public:
         minSoc.setPassDelayMs(3*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(25);
         haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(25);
         minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
-        //pPrerequisiteConstraint = &allMastersMustBeOn;
         pConstraint = &familyRmAuxConstraints;
       }
     } familyRoomAuxSwitch;
     
-    devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch};
+    static struct Outlet1Switch : xmonit::PowerSwitch {
 
-    familyRoomMasterSwitch.simultaneousToggleOn.listen(&sunroomMasterSwitch.toggle).listen(&familyRoomAuxSwitch.toggle);
-    familyRoomAuxSwitch.simultaneousToggleOn.listen(&familyRoomMasterSwitch.toggle).listen(&sunroomMasterSwitch.toggle);
-    sunroomMasterSwitch.simultaneousToggleOn.listen(&familyRoomMasterSwitch.toggle).listen(&familyRoomAuxSwitch.toggle);
+      AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
+      AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
+      AtLeast<float,Sensor&> haveRequiredPower{requiredPowerTotal, chargersInputPower};
+      AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
+      AtLeast<float,Sensor&> fullSoc {100, soc};
+      OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
+      TimeRangeConstraint timeRange { {8,30,0},{15,30,0} };
+      SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
+      NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
+      TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
+      AndConstraint familyRmAuxConstraints {{&timeRange,/*&allMastersMustBeOn,*/
+        &notSimultaneousToggleOn,&minVoltage,&fullSocOrEnoughPower,&minOffDuration}};
+
+      Outlet1Switch() :
+          xmonit::PowerSwitch("Sunroom Outlet 1",LIGHTS_SET_2_WATTS) {
+        fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(30*SECONDS).setFailMargin(15);
+        minSoc.setPassDelayMs(3*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(25);
+        haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(25);
+        minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
+        pConstraint = &familyRmAuxConstraints;
+      }
+    } outlet1Switch;
+    
+    devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch, &outlet1Switch};
+
+    SimultaneousConstraint::connectListeners({&familyRoomMasterSwitch.simultaneousToggleOn, &familyRoomAuxSwitch.simultaneousToggleOn, 
+      &sunroomMasterSwitch.simultaneousToggleOn, &outlet1Switch.simultaneousToggleOn});    
 
     unsigned long nowMs = automation::millisecs();
     unsigned long syncTimeMs = nowMs;
 
     bool bFirstTime = true;
 
-    TimeRangeConstraint solarTimeRange({0,0,0},{16,00,0}); // app exits at 4:00pm each day
+    TimeRangeConstraint solarTimeRange({0,0,0},{16,00,0}); // app exits at 4:00pm each day (in winter)
     
-    while ( solarTimeRange.test() ) {
+    struct sigaction action;
+    action.sa_handler = signalHandlerFn;
+    action.sa_flags = 0;
+    sigemptyset (&action.sa_mask);
+    sigaction (SIGINT, &action, NULL);
+    sigaction (SIGTERM, &action, NULL);
+
+    while ( solarTimeRange.test() && iSignalCaught==0) {
 
       int iDeviceErrorCnt = 0;
 
@@ -223,6 +258,7 @@ public:
       // wait 60 seconds if any request fails (occasional DNS failure or network connectivity)
       automation::sleep( iDeviceErrorCnt ? 60*1000 : 1000 ); 
     };
+
     cout << "====================================================" << endl;
     cout << "Turning off all switches (application is exiting)..." << endl;
     cout << "====================================================" << endl;

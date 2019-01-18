@@ -36,7 +36,7 @@ namespace automation {
   template<typename ValueT, typename ValueSourceT>
   class RangeConstraint : public ValueConstraint<ValueT,ValueSourceT> {
   public:
-
+    RTTI_GET_TYPE_IMPL(automation,Range)
     ValueT minVal, maxVal;
 
     RangeConstraint(ValueT minVal, ValueT maxVal, ValueSourceT &valueSource)
@@ -48,7 +48,7 @@ namespace automation {
       ValueT maxVal = this->maxVal;
 
       if (this->deferredTimeMs) {
-        if (this->bTestResult) {
+        if (this->isPassed()) {
           minVal -= this->failMargin;
           maxVal += this->failMargin;
         } else {
@@ -60,7 +60,7 @@ namespace automation {
       return value >= minVal && value <= maxVal;
     }
 
-    string getTitle() override {
+    string getTitle() const override {
       string rtn(this->valueSource.name);
       rtn += " Range(";
       rtn += asString(minVal);
@@ -89,6 +89,7 @@ namespace automation {
   template<typename ValueT, typename ValueSourceT>
   class ThresholdValueConstraint : public ValueConstraint<ValueT,ValueSourceT> {
   public:
+    RTTI_GET_TYPE_IMPL(automation,ThresholdValue)
 
     ValueHolder<ValueT>* pThreshold;
 
@@ -100,13 +101,10 @@ namespace automation {
         , bDeleteThreshold(false) {
     }
 
-
-    virtual std::string& getType() = 0;
-
-    string getTitle() override {
+    string getTitle() const override {
       string rtn(this->valueSource.name);
       rtn += " ";
-      rtn += getType();
+      rtn += this->getType();
       rtn += "(";
       rtn += asString(pThreshold->getValue());
       rtn += ")";
@@ -131,6 +129,7 @@ namespace automation {
   template<typename ValueT, typename ValueSourceT>
   class AtMost : public ThresholdValueConstraint<ValueT,ValueSourceT> {
   public:
+    RTTI_GET_TYPE_IMPL(automation,AtMost)
 
     AtMost(ValueHolder<ValueT>& threshold, ValueSourceT &valueSource)
         : ThresholdValueConstraint<ValueT,ValueSourceT>(threshold,valueSource) {
@@ -140,16 +139,11 @@ namespace automation {
         : AtMost<ValueT,ValueSourceT>(new ConstantValueHolder<ValueT>(threshold),valueSource) {
     }
 
-    std::string& getType() override {
-      static std::string strType("AtMost");
-      return strType;
-    }
-
     bool checkValue(const ValueT &value) override {
       ValueT maxVal = this->pThreshold->getValue();
 
       if (this->deferredTimeMs) {
-        if (this->bTestResult) {
+        if (this->isPassed()) {
           maxVal += this->failMargin;
         } else {
           maxVal -= this->passMargin;
@@ -163,6 +157,7 @@ namespace automation {
   template<typename ValueT, typename ValueSourceT>
   class AtLeast : public ThresholdValueConstraint<ValueT,ValueSourceT> {
   public:
+    RTTI_GET_TYPE_IMPL(automation,AtLeast)
 
     AtLeast(ValueHolder<ValueT>& threshold, ValueSourceT &valueSource)
         : ThresholdValueConstraint<ValueT,ValueSourceT>(threshold,valueSource) {
@@ -172,16 +167,11 @@ namespace automation {
         : ThresholdValueConstraint<ValueT,ValueSourceT>(new ConstantValueHolder<ValueT>(threshold),valueSource,true) {
     }
 
-    std::string& getType() override {
-      static std::string strType("AtLeast");
-      return strType;
-    }
-
     bool checkValue(const ValueT &value) override {
       ValueT minVal = this->pThreshold->getValue();
 
       if (this->deferredTimeMs) {
-        if (this->bTestResult) {
+        if (this->isPassed()) {
           minVal -= this->failMargin;
         } else {
           minVal += this->passMargin;

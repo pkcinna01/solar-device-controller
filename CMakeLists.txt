@@ -12,13 +12,13 @@ set(CMAKE_CXX_STANDARD 14)
 #message(${SSL_LIB})
 #message(${CRYPTO_LIB})
 
-add_executable(solar_ifttt main.cpp automation/Sensor.cpp ifttt/ifttt.cpp
+add_executable(solar_ifttt main.cpp automation/sensor/Sensor.cpp automation/device/Device.cpp ifttt/ifttt.cpp
         Prometheus.h
         automation/constraint/ScheduledConstraint.h
         automation/constraint/BooleanConstraint.h
         automation/constraint/NestedConstraint.h
         automation/constraint/ValueConstraint.h
-        automation/CompositeSensor.h)
+        automation/sensor/CompositeSensor.h)
 
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)

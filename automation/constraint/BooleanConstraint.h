@@ -10,6 +10,8 @@ namespace automation {
     const bool bResult;
 
   public:
+    RTTI_GET_TYPE_IMPL(automation,Boolean)
+
     explicit BooleanConstraint(bool bResult) : bResult(bResult) {
     }
 
@@ -17,7 +19,7 @@ namespace automation {
       return bResult;
     }
 
-    string getTitle() override {
+    string getTitle() const override {
       return bResult ? "PASS" : "FAIL";
     }
   };

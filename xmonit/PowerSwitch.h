@@ -1,16 +1,16 @@
-#ifndef SOLAR_IFTTT_POWERSWITCH_H
-#define SOLAR_IFTTT_POWERSWITCH_H
+#ifndef XMONIT_POWERSWITCH_H
+#define XMONIT_POWERSWITCH_H
 
 #include "../automation/device/PowerSwitch.h"
-#include "ifttt.h"
-#include "WebHookSession.h"
-#include "WebHookEvent.h"
+#include "xmonit.h"
+#include "XmonitSession.h"
 
-namespace ifttt {
+
+namespace xmonit {
 
   class PowerSwitch : public automation::PowerSwitch {
   public:
-    RTTI_GET_TYPE_IMPL(ifttt,PowerSwitch);
+    RTTI_GET_TYPE_IMPL(xmonit,PowerSwitch);
 
     const int MAX_RETRY_CNT = 2;
 
@@ -18,7 +18,7 @@ namespace ifttt {
 
     string strOnEventLabel, strOffEventLabel;
 
-    PowerSwitch(const string &id, float requiredWatts) : automation::PowerSwitch(id,requiredWatts), bLastValueSent(false) {}
+    PowerSwitch(const string &id, float requiredWatts = 0) : automation::PowerSwitch(id,requiredWatts), bLastValueSent(false) {}
 
     virtual PowerSwitch& setOnEventLabel(const string& onLabel) {
       strOnEventLabel = onLabel;
@@ -35,23 +35,21 @@ namespace ifttt {
     }
 
     bool isOn() const override {
-      //TODO - Find way to query samsung smart switch from IFTTT... may need to go directly to Samsung web service
+      //TODO - get latest value via USB and have cache rules
       return bLastValueSent;
     }
 
     void setOn(bool bOn) override {
       bError = false;
       string eventLabel = bOn ? strOnEventLabel : strOffEventLabel;
-      WebHookEvent evt(eventLabel);
-      auto pSession = std::make_unique<WebHookSession>(ifttt::KEY);
+      auto pSession = std::make_unique<XmonitSession>();
+
       for( int i = 0; i < MAX_RETRY_CNT; i++) {
         try {
-          if (pSession->sendEvent(evt)) {
-            bLastValueSent = bOn;
-            return;
-          }
+          pSession->sendToggleEvent(name,bOn);
+          return;
         } catch (Poco::Exception &ex)  {
-          automation::logBuffer << "FAILED turning " << ( bOn ? "ON" : "OFF" ) << " switch '" << name << "' (IFTTT host: " << pSession->getHost() << ")." << endl;
+          automation::logBuffer << "FAILED turning " << ( bOn ? "ON" : "OFF" ) << " switch '" << name << "' (XMONIT host: " << pSession->getHost() << ")." << endl;
           automation::logBuffer << ex.displayText() << endl;
         }
       }

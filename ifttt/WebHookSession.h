@@ -45,7 +45,8 @@ namespace ifttt {
       req.write(ss);
       string requestLine1;
       getline(ss,requestLine1);
-      automation::logBuffer << requestLine1;
+      requestLine1.erase(remove(requestLine1.begin(), requestLine1.end(), '\r'), requestLine1.end());      
+      automation::logBuffer << requestLine1 << endl;
       //cout << reqBody << endl;
 
       ostream &os = sendRequest(req);

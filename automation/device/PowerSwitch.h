@@ -3,7 +3,7 @@
 
 #include "Device.h"
 #include "../capability/Toggle.h"
-#include "../ToggleSensor.h"
+#include "../sensor/ToggleSensor.h"
 
 #include <functional>
 

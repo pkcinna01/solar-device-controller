@@ -1,7 +1,8 @@
 #include <chrono>
 #include <Poco/Thread.h>
-#include "../automation/Sensor.h"
 #include "../automation/capability/Capability.h"
+#include "../automation/constraint/Constraint.h"
+#include "../automation/sensor/Sensor.h"
 #include "../automation/device/Device.h"
 
 #include <sstream>
@@ -28,11 +29,18 @@ namespace automation {
     cout << *this << endl;
   }
 
-  void Device::print(int depth) {
+  void Device::print(int depth,bool bVerbose) {
     cout << *this << endl;
   }
 
+  void Device::printVerboseExtra(int depth) {    
+  }
+
   void Capability::print(int depth) {
+    cout << *this << endl;
+  }
+
+  void Constraint::print(int depth) const {
     cout << *this << endl;
   }
 

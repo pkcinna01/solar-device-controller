@@ -1,7 +1,7 @@
 #ifndef AUTOMATION_SENSOR_H
 #define AUTOMATION_SENSOR_H
 
-#include "Automation.h"
+#include "../Automation.h"
 
 #include <string>
 #include <functional>
@@ -16,12 +16,12 @@ namespace automation {
     virtual ValueT getValue() const = 0;
   };
 
-  class Sensor : public ValueHolder<float> {
-  public:
+  class Sensor : public ValueHolder<float>, public AttributeContainer {
+  public:    
+    RTTI_GET_TYPE_DECL;
+    //GET_ID_DECL;
 
-    std::string name;
-
-    Sensor(const std::string& name) : name(name)
+    Sensor(const std::string& name) : AttributeContainer(name)
     {
     }
 
@@ -29,7 +29,7 @@ namespace automation {
     {
       bInitialized = true;
     }
-
+  
     virtual void print(int depth = 0);
 
     virtual void printVerbose(int depth = 0 ) { print(depth); }
@@ -64,7 +64,7 @@ namespace automation {
     static float delta(const vector<Sensor*>& sensors);
 
     friend std::ostream &operator<<(std::ostream &os, const Sensor &s) {
-      os << "\"Sensor\": { name: \"" << s.name << "\", value: " << s.getValue() << " }";
+      os << F("\"Sensor\": { name: \"") << s.name << F("\", value: ") << s.getValue() << " }";
       return os;
     }
 
@@ -75,6 +75,7 @@ namespace automation {
 
   class SensorFn : public Sensor {
   public:
+    RTTI_GET_TYPE_IMPL(automation::sensor,SensorFn)
 
     //const std::function<float()> getValueImpl;
     float (*getValueImpl)(); // Arduino does not support function<> template

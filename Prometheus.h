@@ -1,7 +1,7 @@
 #ifndef SOLAR_IFTTT_PROMETHEUS_H
 #define SOLAR_IFTTT_PROMETHEUS_H
 
-#include "automation/Sensor.h"
+#include "automation/sensor/Sensor.h"
 
 #include <Poco/URI.h>
 #include <Poco/Net/HTTPClientSession.h>

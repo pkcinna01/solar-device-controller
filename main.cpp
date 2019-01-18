@@ -75,12 +75,6 @@ public:
       return rtnWatts;
     });
 
-    static struct InverterWallOutlet1 : xmonit::PowerSwitch {
-      InverterWallOutlet1() :
-          xmonit::PowerSwitch("Sunroom Wall Outlet 1",DEFAULT_APPLIANCE_WATTS) {
-      };
-    } inverterWallOutlet1;
-
     static struct FamilyRoomMasterSwitch : ifttt::PowerSwitch {
 
       AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
@@ -172,16 +166,17 @@ public:
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
-      AndConstraint familyRmAuxConstraints {{&timeRange,/*&allMastersMustBeOn,*/
+      AndConstraint allConstraints {{&timeRange,/*&allMastersMustBeOn,*/
         &notSimultaneousToggleOn,&minVoltage,&fullSocOrEnoughPower,&minOffDuration}};
 
       Outlet1Switch() :
+          //IMPORTANT: PowerSwitch ID in constructor must match a name of switch defined in the remote ATMega
           xmonit::PowerSwitch("Sunroom Outlet 1",LIGHTS_SET_2_WATTS) {
         fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(30*SECONDS).setFailMargin(15);
         minSoc.setPassDelayMs(3*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(25);
         haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(25);
         minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
-        pConstraint = &familyRmAuxConstraints;
+        pConstraint = &allConstraints;
       }
     } outlet1Switch;
     

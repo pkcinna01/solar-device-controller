@@ -3,7 +3,7 @@
 
 namespace ifttt {
 
-  const char* KEY = "duP4pgovijmo-Zhh184oZu";
+  const char* KEY = "pgoduPijmo4v-Zhe231nZu";
 
 }
 #endif

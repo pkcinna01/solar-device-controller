@@ -29,6 +29,10 @@ namespace automation {
     cout << *this << endl;
   }
 
+  void Sensor::printVerbose(int depth) {
+    print(depth);
+  }
+
   void Device::print(int depth,bool bVerbose) {
     cout << *this << endl;
   }

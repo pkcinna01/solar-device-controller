@@ -4,6 +4,8 @@
 #include "ifttt/PowerSwitch.h"
 #include "xmonit/PowerSwitch.h"
 #include "automation/Automation.h"
+#include "automation/json/JsonStreamWriter.h"
+#include "automation/constraint/ConstraintEventHandler.h"
 #include "automation/constraint/NotConstraint.h"
 #include "automation/constraint/AndConstraint.h"
 #include "automation/constraint/OrConstraint.h"
@@ -26,25 +28,45 @@ using namespace std;
 using namespace automation;
 using namespace ifttt;
 
+
 // Summer window AC units use 525 (AC + Fan)
 // Winter heaters use 575 watts
-#define DEFAULT_APPLIANCE_WATTS 575
+#define DEFAULT_APPLIANCE_WATTS 550
 
-#define DEFAULT_MIN_VOLTS 24.80
+#define DEFAULT_MIN_VOLTS 24.70
 
-#define LIGHTS_SET_1_WATTS 120
-#define LIGHTS_SET_2_WATTS 120
+#define LIGHTS_SET_1_WATTS 100
+#define LIGHTS_SET_2_WATTS 100
 
-#define MIN_SOC_PERCENT 48.25
+#define MIN_SOC_PERCENT 48.00
 
 bool iSignalCaught = 0;
 static void signalHandlerFn (int val) { iSignalCaught = val; }
+
+class LogConstraintEventHandler : public ConstraintEventHandler{
+  public:
+  void resultDeferred(Constraint* pConstraint,bool bNew,unsigned long delayMs) const override {
+    logBuffer << "DEFERRED(next=" << bNew << ",delay=" << delayMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
+  };
+  void resultChanged(Constraint* pConstraint,bool bNew,unsigned long lastDurationMs) const override {
+    logBuffer << "CHANGED(new=" << bNew << ",lastDuration=" << lastDurationMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
+  };
+  //void resultSame(Constraint* pConstraint,bool bVal,unsigned long lastDurationMs) const override {
+  //  logBuffer << "SAME(value=" << bVal << ",duration=" << lastDurationMs << "ms): " << pConstraint->getTitle() << endl;
+  //};
+  void deferralCancelled(Constraint* pConstraint,bool bCurrent,unsigned long lastDurationMs) const override {
+    logBuffer << "DEFERRAL CANCELED(current=" << bCurrent << ",duration=" << lastDurationMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
+  };
+} logConstraintEventHandler;
+  
+
 
 class IftttApp : public Poco::Util::Application {
 
 public:
   virtual int main(const std::vector<std::string> &args) {
 
+    ConstraintEventHandlerList::instance.push_back(&logConstraintEventHandler);
     cout << "START TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
 
     auto metricFilter = [](const Prometheus::Metric &metric) { return metric.name.find("solar") == 0; };
@@ -78,6 +100,7 @@ public:
     static struct FamilyRoomMasterSwitch : ifttt::PowerSwitch {
 
       AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
+      AtLeast<float,Sensor&> cutoffVoltage {22, batteryBankVoltage};
       AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
       AtLeast<float,Sensor&> haveRequiredPower{requiredPowerTotal, chargersInputPower};
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
@@ -87,7 +110,7 @@ public:
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
-      AndConstraint familyRmMasterConstraints {{&timeRange,&notSimultaneousToggleOn,&minVoltage,&fullSocOrEnoughPower,&minOffDuration}};
+      AndConstraint familyRmMasterConstraints {{&timeRange,&notSimultaneousToggleOn,&minVoltage,&cutoffVoltage,&fullSocOrEnoughPower,&minOffDuration}};
 
       FamilyRoomMasterSwitch() :
           ifttt::PowerSwitch("Family Room Master",DEFAULT_APPLIANCE_WATTS) {
@@ -96,7 +119,7 @@ public:
         fullSoc.setPassDelayMs(30*SECONDS).setFailDelayMs(90*SECONDS).setFailMargin(25);
         minSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(120*SECONDS).setFailMargin(20).setPassMargin(5);
         haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(120*SECONDS).setFailMargin(125).setPassMargin(100);
-        minVoltage.setFailDelayMs(15*SECONDS).setFailMargin(0.5);
+        minVoltage.setFailDelayMs(30*SECONDS).setFailMargin(0.5);
         pConstraint = &familyRmMasterConstraints;
       }
     } familyRoomMasterSwitch;
@@ -105,6 +128,7 @@ public:
 
       AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
       AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
+      AtLeast<float,Sensor&> cutoffVoltage {22.75, batteryBankVoltage};
       AtLeast<float,Sensor&> haveRequiredPower{requiredPowerTotal, chargersInputPower};
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
       AtLeast<float,Sensor&> fullSoc {100, soc};
@@ -113,7 +137,7 @@ public:
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
-      AndConstraint sunroomMasterConstraints {{&timeRange,&notSimultaneousToggleOn,&minVoltage,&fullSocOrEnoughPower,&minOffDuration}};
+      AndConstraint sunroomMasterConstraints {{&timeRange,&notSimultaneousToggleOn,&minVoltage,&cutoffVoltage,&fullSocOrEnoughPower,&minOffDuration}};
 
       SunroomMasterSwitch() :
           ifttt::PowerSwitch("Sunroom Master",DEFAULT_APPLIANCE_WATTS) {
@@ -122,7 +146,7 @@ public:
         fullSoc.setPassDelayMs(30*SECONDS).setFailDelayMs(120*SECONDS).setFailMargin(25);
         minSoc.setPassDelayMs(2*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(20).setPassMargin(10);
         haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(45*SECONDS).setFailMargin(125).setPassMargin(100);
-        minVoltage.setFailDelayMs(5*SECONDS).setFailMargin(0.5);
+        minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
         pConstraint = &sunroomMasterConstraints;
       }
     } sunroomMasterSwitch;
@@ -154,6 +178,7 @@ public:
       }
     } familyRoomAuxSwitch;
     
+    /*
     static struct Outlet1Switch : xmonit::PowerSwitch {
 
       AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
@@ -166,8 +191,7 @@ public:
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
-      AndConstraint allConstraints {{&timeRange,/*&allMastersMustBeOn,*/
-        &notSimultaneousToggleOn,&minVoltage,&fullSocOrEnoughPower,&minOffDuration}};
+      AndConstraint allConstraints {{&timeRange,&notSimultaneousToggleOn,&minVoltage,&fullSocOrEnoughPower,&minOffDuration}};
 
       Outlet1Switch() :
           //IMPORTANT: PowerSwitch ID in constructor must match a name of switch defined in the remote ATMega
@@ -179,11 +203,12 @@ public:
         pConstraint = &allConstraints;
       }
     } outlet1Switch;
-    
-    devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch, &outlet1Switch};
+    */
+
+    devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch}; //, &outlet1Switch};
 
     SimultaneousConstraint::connectListeners({&familyRoomMasterSwitch.simultaneousToggleOn, &familyRoomAuxSwitch.simultaneousToggleOn, 
-      &sunroomMasterSwitch.simultaneousToggleOn, &outlet1Switch.simultaneousToggleOn});    
+      &sunroomMasterSwitch.simultaneousToggleOn/*, &outlet1Switch.simultaneousToggleOn*/});    
 
     unsigned long nowMs = automation::millisecs();
     unsigned long syncTimeMs = nowMs;
@@ -216,13 +241,13 @@ public:
         }
         string strLogBuffer;
         automation::logBufferToString(strLogBuffer);
-
         if ( !strLogBuffer.empty() ) {
           cout << "=================================================================================" << endl;
-          cout << "DEVICE " << pPowerSwitch->name << endl;
+          cout << "DEVICE: " << pPowerSwitch->name << ", ON: " << pPowerSwitch->isOn() << ", TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
+          cout << "SENSORS: [" << soc << ", " << chargersInputPower << ", " << chargersOutputPower << ", " 
+               << requiredPowerTotal << ", " << batteryBankVoltage << "]" << endl;
           cout << strLogBuffer;
-          cout << soc << ", " << chargersInputPower << ", " << chargersOutputPower << ", " << requiredPowerTotal << ", " << batteryBankVoltage << endl;
-          cout << "TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
+          //pPowerSwitch->printVerbose(); cout << endl;
         }
       }
       currentDevice = nullptr;

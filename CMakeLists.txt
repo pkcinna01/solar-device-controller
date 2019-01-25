@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.9)
 project(solar_ifttt)
 
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 #set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 #find_library(SSL_LIB libssl.a REQUIRED)
@@ -12,7 +13,12 @@ set(CMAKE_CXX_STANDARD 14)
 #message(${SSL_LIB})
 #message(${CRYPTO_LIB})
 
-add_executable(solar_ifttt main.cpp automation/sensor/Sensor.cpp automation/device/Device.cpp ifttt/ifttt.cpp
+add_executable(solar_ifttt main.cpp 
+        automation/sensor/Sensor.cpp 
+        automation/device/Device.cpp
+        automation/capability/Capability.cpp
+        automation/constraint/Constraint.cpp
+        ifttt/ifttt.cpp
         Prometheus.h
         automation/constraint/ScheduledConstraint.h
         automation/constraint/BooleanConstraint.h

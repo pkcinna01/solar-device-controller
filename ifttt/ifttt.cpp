@@ -1,9 +1,6 @@
 #include <chrono>
 #include <Poco/Thread.h>
-#include "../automation/capability/Capability.h"
-#include "../automation/constraint/Constraint.h"
-#include "../automation/sensor/Sensor.h"
-#include "../automation/device/Device.h"
+#include "../automation/Automation.h"
 
 #include <sstream>
 
@@ -25,29 +22,6 @@ namespace automation {
     return true; // assume time always usable for server applications (not arduino)
   }
 
-  void Sensor::print(int depth) {
-    cout << *this << endl;
-  }
-
-  void Sensor::printVerbose(int depth) {
-    print(depth);
-  }
-
-  void Device::print(int depth,bool bVerbose) {
-    cout << *this << endl;
-  }
-
-  void Device::printVerboseExtra(int depth) {    
-  }
-
-  void Capability::print(int depth) {
-    cout << *this << endl;
-  }
-
-  void Constraint::print(int depth) const {
-    cout << *this << endl;
-  }
-
   static stringstream logBufferImpl;
 
   std::ostream& getLogBufferImpl() {
@@ -61,6 +35,10 @@ namespace automation {
 
   void logBufferToString( string& dest) {
     dest = logBufferImpl.str();
+  }
+
+  void threadKeepAliveReset() { 
+    // only for Arduino
   }
 
 }

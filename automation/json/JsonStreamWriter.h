@@ -55,8 +55,8 @@ class JsonStreamWriter
   void clearChecksum() { checksum = 0; }
   unsigned long getChecksum() { return checksum; }
 
-  int depth;
-  int beginStringObjByteCnt;
+  unsigned int depth;
+  long beginStringObjByteCnt;
 
   JsonStreamWriter(OutputStreamPrinter& impl, int depth = 0) :
     impl(impl),
@@ -159,6 +159,12 @@ class JsonStreamWriter
   JsonStreamWriter& operator+(TVal v) 
   {
     return appendStringVal(v);
+  }
+
+  JsonStreamWriter& appendStringVal(const std::string& str)
+  { 
+    statefulPrint(str.c_str()); 
+    return *this;
   }
 
   //TODO - escape double quotes if a string

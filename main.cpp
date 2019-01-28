@@ -45,8 +45,8 @@ static void signalHandlerFn (int val) { iSignalCaught = val; }
 
 class LogConstraintEventHandler : public ConstraintEventHandler{
   public:
-  void resultDeferred(Constraint* pConstraint,bool bNew,unsigned long delayMs) const override {
-    logBuffer << "DEFERRED(next=" << bNew << ",delay=" << delayMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
+  void resultDeferred(Constraint* pConstraint,bool bNext,unsigned long delayMs) const override {
+    logBuffer << "DEFERRED(next=" << bNext << ",delay=" << delayMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
   };
   void resultChanged(Constraint* pConstraint,bool bNew,unsigned long lastDurationMs) const override {
     logBuffer << "CHANGED(new=" << bNew << ",lastDuration=" << lastDurationMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
@@ -206,6 +206,9 @@ public:
     */
 
     devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch}; //, &outlet1Switch};
+    json::JsonSerialWriter w;
+    //w.printlnVectorObj("devices",devices,"",true);
+    //w.printlnVectorObj("constraints",Constraint::all(),"",true);
 
     SimultaneousConstraint::connectListeners({&familyRoomMasterSwitch.simultaneousToggleOn, &familyRoomAuxSwitch.simultaneousToggleOn, 
       &sunroomMasterSwitch.simultaneousToggleOn/*, &outlet1Switch.simultaneousToggleOn*/});    

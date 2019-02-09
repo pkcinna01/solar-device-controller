@@ -206,7 +206,7 @@ public:
     */
 
     devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch}; //, &outlet1Switch};
-    json::JsonSerialWriter w;
+    //json::JsonSerialWriter w;
     //w.printlnVectorObj("devices",devices,"",true);
     //w.printlnVectorObj("constraints",Constraint::all(),"",true);
 
@@ -247,10 +247,13 @@ public:
         if ( !strLogBuffer.empty() ) {
           cout << "=================================================================================" << endl;
           cout << "DEVICE: " << pPowerSwitch->name << ", ON: " << pPowerSwitch->isOn() << ", TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
-          cout << "SENSORS: [" << soc << ", " << chargersInputPower << ", " << chargersOutputPower << ", " 
-               << requiredPowerTotal << ", " << batteryBankVoltage << "]" << endl;
+          cout << "SENSORS: [";
+          for ( auto s : { soc, chargersInputPower, chargersOutputPower, requiredPowerTotal, batteryBankVoltage }){
+            cout << '"' << s.getTitle() << "\"=" << s.getValue() << ",";
+          }
           cout << strLogBuffer;
-          //pPowerSwitch->printVerbose(); cout << endl;
+          //pPowerSwitch->printVerbose(); 
+          //cout << endl;
         }
       }
       currentDevice = nullptr;

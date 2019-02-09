@@ -38,6 +38,8 @@ namespace automation {
     
     virtual std::string getTitle() const = 0;
 
+    virtual void printVerboseExtra(json::JsonStreamWriter& w) const {}
+
   };
 
 
@@ -99,6 +101,13 @@ namespace automation {
             break;
           }
         }
+      }
+    }
+
+    template<typename ResultContainerT>
+    std::vector<ResultContainerT>& findByIds( std::vector<unsigned long> ids, std::vector<ResultContainerT>& resultVec) {
+      for( auto id : ids ) {
+        findById(id,resultVec);
       }
       return resultVec;
     }

@@ -35,8 +35,6 @@ namespace automation {
 
     virtual void print(json::JsonStreamWriter& w, bool bVerbose=false, bool bIncludePrefix=true) const override;
 
-    virtual void printVerboseExtra(json::JsonStreamWriter& w) const { w.noPrefixPrintln(""); };
-
     virtual Constraint* getConstraint() {
       return pConstraint;
     }
@@ -48,14 +46,10 @@ namespace automation {
     virtual void setup() = 0;
     
     virtual SetCode setAttribute(const char* pszKey, const char* pszVal, ostream* pRespStream = nullptr) override;
-    
-    friend std::ostream &operator<<(std::ostream &os, const Device &d) {
-      os << F("\"Device\": { \"name\": \"") << d.name << "\" }";
-      return os;
-    }
 
   protected:
     bool bInitialized = false;
+
   };
 
 

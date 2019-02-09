@@ -7,6 +7,7 @@
 #include <string>
 #include <algorithm>
 #include <functional>
+#include <set>
 
 using namespace std;
 
@@ -20,52 +21,69 @@ namespace automation {
 
     double value = 0;
 
+    static std::set<Capability*>& all(){
+      static std::set<Capability*> all;
+      return all;
+    }    
+
     Capability(const Device* pDevice) : pDevice(pDevice) {
+      assignId(this);
+      all().insert(this);
     };
 
+    virtual ~Capability() {
+      all().erase(this);
+    }
     virtual double getValueImpl() const = 0;
-    virtual void setValueImpl(double dVal) = 0;
+    virtual bool setValueImpl(double dVal) = 0;
     RTTI_GET_TYPE_DECL;
 
     virtual double getValue() const {
       return getValueImpl();
     }
 
-    virtual void setValue(double dVal) {
-      setValueImpl(dVal);
-      notifyListeners();
+    virtual bool setValue(double newVal) {
+      double oldVal = getValue();
+      bool bOk = setValueImpl(newVal);
+      if ( bOk ) {
+        notifyValueSetListeners(newVal,oldVal);
+      }
+      return bOk;
     };
 
-    virtual bool asBoolean() const {
+    bool asBoolean() const {
       return getValue() != 0;
     }
 
-    virtual const string getOwnerName() const {
+    const string getOwnerName() const {
         return pDevice ? pDevice->name : "";
     }
 
-    virtual void setValue(bool bVal) {
-      setValue( (double) (bVal ? 1.0 : 0) );
+    bool setValue(bool bVal) {
+      return setValue( (double) (bVal ? 1.0 : 0) );
     };
 
-    virtual void setValue(const string& strVal) {
+    virtual bool setValue(const string& strVal) {
       std::istringstream ss(strVal);
       double d;
       if (ss >> d ) {
-        setValue(d);
+        return setValue(d);
       } else {
         logBuffer << F("WARNING ") << __PRETTY_FUNCTION__ <<  F(" failed parsing ") << strVal << F(" to double.") << endl;
+        return false;
       }
     }
 
-    virtual void notifyListeners() {
+    virtual SetCode setAttribute(const char* pszKey, const char* pszVal, ostream* pRespStream = nullptr) override;
+
+    virtual void notifyValueSetListeners(double newVal, double oldVal) {
       for( CapabilityListener* pListener : listeners) {
-        pListener->valueSet(this,getValue());
+        pListener->valueSet(this,newVal,oldVal);
       }
     };
 
     struct CapabilityListener {
-      virtual void valueSet(const Capability* pCapability, double value) = 0;
+      virtual void valueSet(const Capability* pCapability, double newVal, double oldVal) = 0;
     };
 
     vector<CapabilityListener*> listeners;
@@ -92,17 +110,20 @@ namespace automation {
 
     virtual void print(json::JsonStreamWriter& w, bool bVerbose=false, bool bIncludePrefix=true) const;
 
-    friend std::ostream &operator<<(std::ostream &os, const Capability &c) {
-      os << c.getTitle() << " = " << text::asString(c.getValue());
-      return os;
-    }
-
   protected:
 
     const Device* pDevice;
 
   };
 
+
+ class Capabilities : public AttributeContainerVector<Capability*> {
+  public:
+    Capabilities(){}
+    Capabilities( vector<Capability*>& c ) : AttributeContainerVector<Capability*>(c) {}
+    Capabilities( vector<Capability*> c ) : AttributeContainerVector<Capability*>(c) {}
+    Capabilities( set<Capability*>& c ) : AttributeContainerVector<Capability*>(c.begin(),c.end()) {}
+  };
 }
 
 #endif //AUTOMATION_CAPABILITY_H

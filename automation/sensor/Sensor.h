@@ -32,8 +32,6 @@ namespace automation {
       bInitialized = true;
     }
   
-    virtual void printVerboseExtra(json::JsonStreamWriter& w) const {}
-
     virtual void print(json::JsonStreamWriter& w, bool bVerbose=false, bool bIncludePrefix=true) const override;
 
     template<typename ObjectPtr,typename MethodPtr>
@@ -61,11 +59,6 @@ namespace automation {
     static float maximum(const vector<Sensor*>& sensors);
     static float delta(const vector<Sensor*>& sensors);
 
-    friend std::ostream &operator<<(std::ostream &os, const Sensor &s) {
-      os << F("\"") << s.name << F("\": ") << s.getValue();
-      return os;
-    }
-
   protected:
     bool bInitialized = false;
   };
@@ -73,7 +66,7 @@ namespace automation {
 
   class SensorFn : public Sensor {
   public:
-    RTTI_GET_TYPE_IMPL(automation::sensor,SensorFn)
+    RTTI_GET_TYPE_IMPL(automation::sensor,SensorFn);
 
     //const std::function<float()> getValueImpl;
     float (*getValueImpl)(); // Arduino does not support function<> template

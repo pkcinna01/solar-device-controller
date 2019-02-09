@@ -4,6 +4,8 @@
 #include "Constraint.h"
 #include "../capability/Capability.h"
 
+#include <algorithm>
+
 namespace automation {
 
 class SimultaneousConstraint : public Constraint, public Capability::CapabilityListener {
@@ -21,7 +23,6 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
       return false;
     }
 
-    // considered simultaneous if last non-zero capability result happened within maxIntervalMs millisecs
     bool checkValue() override {
       unsigned long now = millisecs();
       unsigned long elapsedMs = now - lastPassTimeMs;
@@ -65,11 +66,14 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
     // t2.addListener(simultaneousConstraint);
     // t3.addListener(simultaneousConstraint);
     //
-    void valueSet(const Capability* pCapability, double numericValue) override {
-      if ( automation::bSynchronizing ) {
+    void valueSet(const Capability* pCapability, double newVal, double oldVal) override {
+      if ( newVal != oldVal ) {
+        return; // capability (ex: toggle) was set but not changed so should not impact simultaneity
+      } else if ( automation::bSynchronizing ) {
         return;
-      }
-      if ( numericValue == targetValue ) {
+      } else if ( pCapability == this->pCapability ) {
+        return; // would not make sense to check if a capability is simultaneous with itself
+      } else if ( newVal == targetValue ) {
         lastPassTimeMs = millisecs();
         pLastPassCapability = pCapability;
       }
@@ -89,6 +93,23 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
           }
         }
       }
+    }
+
+    virtual void printVerboseExtra(json::JsonStreamWriter& w) const override {
+      w.printlnNumberObj(F("maxIntervalMs"),maxIntervalMs,",");
+      w.printlnNumberObj(F("remainingMs"), std::max((float)0,(float)maxIntervalMs-(float)(millisecs()-lastPassTimeMs)),",");
+      w.printKey(F("capabilityIds"));
+      w + F(" [");
+      bool bFirst = true;
+      for( auto pCap : capabilityGroup){
+        if ( bFirst ) {
+          bFirst = false;
+        } else {
+          w + F(",");
+        }
+        w + (unsigned int) pCap->id;
+      }
+      w.noPrefixPrintln(F("],"));
     }
 
   protected:

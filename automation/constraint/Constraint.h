@@ -60,8 +60,6 @@ namespace automation {
       }
     }
 
-    static NumericIdentifierValue idGenerator;
-
     // access constraints without having to traverse all devices and nested constraints
     static std::set<Constraint*>& all(){
       static std::set<Constraint*> all;
@@ -133,9 +131,11 @@ namespace automation {
     
     bool isPassed() const { return bPassed; };
 
-    virtual void printVerboseExtra(json::JsonStreamWriter& w) const {}
-
     void print(json::JsonStreamWriter& w, bool bVerbose=false, bool bIncludePrefix=true) const override;
+
+    bool isRemoteCompatible() {
+      return (mode&REMOTE_MODE) > 0;
+    }
 
     protected:
 
@@ -155,7 +155,25 @@ namespace automation {
   };
 
   class Constraints : public AttributeContainerVector<Constraint*> {
+
+    static uint64_t& pauseEndTimeMs() {
+      static uint64_t pauseEndTimeMs = automation::millisecs64();
+      return pauseEndTimeMs;
+    };
+
   public:
+    
+    static bool isPaused() {
+      uint64_t endTimeMs = pauseEndTimeMs();
+      bool bPaused = endTimeMs == 0 || automation::millisecs64() < endTimeMs;
+      return bPaused;
+    }
+
+    static void setPauseEndTimeMs(uint64_t newPauseEndTimeMs) {
+      uint64_t& endTimeMs = pauseEndTimeMs();
+      endTimeMs = newPauseEndTimeMs;
+    }
+
     Constraints(){}
     Constraints( vector<Constraint*>& constraints ) : AttributeContainerVector<Constraint*>(constraints) {}
     Constraints( vector<Constraint*> constraints ) : AttributeContainerVector<Constraint*>(constraints) {}

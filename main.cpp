@@ -35,10 +35,10 @@ using namespace ifttt;
 
 #define DEFAULT_MIN_VOLTS 24.70
 
-#define LIGHTS_SET_1_WATTS 100
-#define LIGHTS_SET_2_WATTS 100
+#define LIGHTS_SET_1_WATTS 180
+#define LIGHTS_SET_2_WATTS 120
 
-#define MIN_SOC_PERCENT 48.00
+#define MIN_SOC_PERCENT 50.00
 
 bool iSignalCaught = 0;
 static void signalHandlerFn (int val) { iSignalCaught = val; }
@@ -218,7 +218,7 @@ public:
 
     bool bFirstTime = true;
 
-    TimeRangeConstraint solarTimeRange({0,0,0},{16,00,0}); // app exits at 4:00pm each day (in winter)
+    TimeRangeConstraint solarTimeRange({0,0,0},{17,00,0}); 
     
     struct sigaction action;
     action.sa_handler = signalHandlerFn;
@@ -297,7 +297,7 @@ public:
           automation::logBufferToString(strLogBuffer);
           cout << strLogBuffer;
     }
-    cout << "Exiting " << args[0] << endl;
+    cout << "Exiting " << (args.empty() ? "solar_ifttt" : args[0]) << endl;
     return 0;
   }
 };

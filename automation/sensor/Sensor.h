@@ -11,12 +11,6 @@
 namespace automation {
 
 
-  template<typename ValueT>
-  class ValueHolder {
-  public:
-    virtual ValueT getValue() const = 0;
-  };
-
   class Sensor : public ValueHolder<float>, public NamedContainer {
   public:    
     RTTI_GET_TYPE_DECL;

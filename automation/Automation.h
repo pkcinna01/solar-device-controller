@@ -37,6 +37,12 @@ namespace automation {
     NullStream() : std::ostream( &m_nb ) {}
   };
 
+  template<typename ValueT>
+  class ValueHolder {
+  public:
+    virtual ValueT getValue() const = 0;
+  };
+
   static NullStream cnull;
   
   std::ostream& getLogBufferImpl();

@@ -19,7 +19,9 @@
 
 #include "Prometheus.h"
 
-#include "Poco/Util/Application.h"
+#include <Poco/Util/Application.h>
+#include <Poco/DateTimeFormatter.h>
+#include <Poco/DateTimeFormat.h>
 #include <signal.h>
 #include <iostream>
 #include <numeric>
@@ -27,18 +29,19 @@
 using namespace std;
 using namespace automation;
 using namespace ifttt;
+using namespace Poco;
 
 
-// Summer window AC units use 525 (AC + Fan)
+// Summer window AC units use 550 (AC + Fan)
 // Winter heaters use 575 watts
 #define DEFAULT_APPLIANCE_WATTS 550
 
 #define DEFAULT_MIN_VOLTS 24.70
 
-#define LIGHTS_SET_1_WATTS 180
+#define LIGHTS_SET_1_WATTS 150
 #define LIGHTS_SET_2_WATTS 120
 
-#define MIN_SOC_PERCENT 50.00
+#define MIN_SOC_PERCENT 48.50
 
 bool iSignalCaught = 0;
 static void signalHandlerFn (int val) { iSignalCaught = val; }
@@ -106,7 +109,7 @@ public:
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
       AtLeast<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {10,00,0},{15,30,00} };
+      TimeRangeConstraint timeRange { {10,00,0},{15,45,00} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
@@ -133,7 +136,7 @@ public:
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
       AtLeast<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {8,30,0},{15,30,00} };
+      TimeRangeConstraint timeRange { {8,30,0},{16,00,00} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
@@ -159,7 +162,7 @@ public:
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
       AtLeast<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {8,30,0},{15,30,0} };
+      TimeRangeConstraint timeRange { {8,30,0},{16,30,0} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};

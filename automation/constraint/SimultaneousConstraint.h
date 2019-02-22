@@ -32,6 +32,10 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
         //logBuffer << "\telapsedMs:" <<elapsedMs << ", maxIntervalMs:" << maxIntervalMs << endl;
         return true;
       }
+
+      //logBuffer << __PRETTY_FUNCTION__ << "******* last PASS was NOT simultaneous. *******" << endl;
+      //logBuffer << "\tcapability ON:" <<pCapability->getValue() << " last pass capability: " << (pLastPassCapability?pLastPassCapability->getValue():-1) << endl;
+      //logBuffer << "\telapsedMs:" <<elapsedMs << ", maxIntervalMs:" << maxIntervalMs << endl;
       return false;
     }
 
@@ -67,7 +71,9 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
     // t3.addListener(simultaneousConstraint);
     //
     void valueSet(const Capability* pCapability, double newVal, double oldVal) override {
-      if ( newVal != oldVal ) {
+      //logBuffer << __PRETTY_FUNCTION__ << " new: " << newVal << ", old: " << oldVal << endl;
+
+      if ( newVal == oldVal ) {
         return; // capability (ex: toggle) was set but not changed so should not impact simultaneity
       } else if ( automation::bSynchronizing ) {
         return;
@@ -76,6 +82,8 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
       } else if ( newVal == targetValue ) {
         lastPassTimeMs = millisecs();
         pLastPassCapability = pCapability;
+      } else {
+
       }
     }
 
@@ -112,9 +120,9 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
       w.noPrefixPrintln(F("],"));
     }
 
+    Capability* pCapability;
   protected:
     unsigned long lastPassTimeMs = 0;
-    Capability* pCapability;
     const Capability* pLastPassCapability = nullptr;
     vector<Capability*> capabilityGroup;
     double targetValue; // set to 1 if check for simultaneous toggle ON and set to 0 for toggle OFF

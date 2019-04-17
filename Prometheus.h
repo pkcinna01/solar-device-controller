@@ -30,27 +30,35 @@ const RegularExpression METRIC_ATTRIBS_RE("^\\s*(\\w+)\\s*=\\s*\"((?:[^\"\\\\]|\
 struct Metric
 {
   string name;
-  double value;
+  float value;
   map<string, string> attributes;
 };
 
 class MetricVector : public vector<Metric>
 {
 public:
-  double avg()
+  float avg()
   {
-    double avg = 0;
-    for (auto const &metric : *this)
+    float avg = 0;
+    for (auto const &metric : *this) {
+      if ( isnan(metric.value) ) {
+        return metric.value;
+      }
       avg += metric.value;
+    }
     avg = avg / size();
     return avg;
   }
 
-  double total()
+  float total()
   {
-    double total = 0;
-    for (auto const &metric : *this)
+    float total = 0;
+    for (auto const &metric : *this) {
+      if ( isnan(metric.value) ) {
+        return metric.value;
+      }
       total += metric.value;
+    }
     return total;
   }
 

@@ -59,7 +59,9 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
             }
         }
         ss << ")";
-        return ss.str();
+        string strTitle = ss.str();
+        cout << strTitle << flush << endl;
+        return strTitle;
     }
 
     // add instance of this class as listener to a capability if it is in group of things to be throttled
@@ -70,9 +72,7 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
     // t2.addListener(simultaneousConstraint);
     // t3.addListener(simultaneousConstraint);
     //
-    void valueSet(const Capability* pCapability, double newVal, double oldVal) override {
-      //logBuffer << __PRETTY_FUNCTION__ << " new: " << newVal << ", old: " << oldVal << endl;
-
+    void valueSet(const Capability* pCapability, float newVal, float oldVal) override {
       if ( newVal == oldVal ) {
         return; // capability (ex: toggle) was set but not changed so should not impact simultaneity
       } else if ( automation::bSynchronizing ) {
@@ -82,8 +82,6 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
       } else if ( newVal == targetValue ) {
         lastPassTimeMs = millisecs();
         pLastPassCapability = pCapability;
-      } else {
-
       }
     }
 

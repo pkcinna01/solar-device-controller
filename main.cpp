@@ -32,16 +32,16 @@ using namespace ifttt;
 using namespace Poco;
 
 
-// Summer window AC units use 550 (AC + Fan)
+// Summer window AC units use 515 (AC + Fan)
 // Winter heaters use 575 watts
-#define DEFAULT_APPLIANCE_WATTS 550
+#define DEFAULT_APPLIANCE_WATTS 515
 
-#define DEFAULT_MIN_VOLTS 24.70
+#define DEFAULT_MIN_VOLTS 24.65
 
-#define LIGHTS_SET_1_WATTS 150
-#define LIGHTS_SET_2_WATTS 120
+#define LIGHTS_SET_1_WATTS 170
+#define LIGHTS_SET_2_WATTS 100
 
-#define MIN_SOC_PERCENT 48.50
+#define MIN_SOC_PERCENT 48.25
 
 bool iSignalCaught = 0;
 static void signalHandlerFn (int val) { iSignalCaught = val; }
@@ -72,7 +72,7 @@ public:
     ConstraintEventHandlerList::instance.push_back(&logConstraintEventHandler);
     cout << "START TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
 
-    auto metricFilter = [](const Prometheus::Metric &metric) { return metric.name.find("solar") == 0; };
+    auto metricFilter = [](const Prometheus::Metric &metric) { return metric.name.find("solar") == 0 || metric.name.find("arduino_solar") == 0; };
 
     static Prometheus::DataSource prometheusDs(Prometheus::URL, metricFilter);
 
@@ -83,21 +83,26 @@ public:
                                    []()->float{ return prometheusDs.metrics["solar_charger_inputPower"].total(); });
     static SensorFn batteryBankVoltage("Battery Bank Voltage",
                                      []()->float{ return prometheusDs.metrics["solar_charger_outputVoltage"].avg(); });
+    static SensorFn batteryBankPower("Battery Bank Power",
+                                     []()->float{ return prometheusDs.metrics["arduino_solar_batteryBankPower"].avg(); });
 
     static vector<automation::PowerSwitch *> devices;
     static automation::PowerSwitch* currentDevice = nullptr;
 
     static SensorFn requiredPowerTotal("Required Power", []()->float{ 
-      float rtnWatts = 0;
+      float requiredWatts = 0;
       //cout << "Begin requiredPowerTotal() count:" << devices.size() << endl;
       for( automation::PowerSwitch *pDevice : devices ) {
         //cout << "Device '" << pDevice->name << "' ON: " << pDevice->isOn() << ", Current: " << (pDevice == currentDevice) << endl;
         if ( pDevice->isOn() || pDevice == currentDevice ) {
-          rtnWatts += pDevice->requiredWatts;
+          requiredWatts += pDevice->requiredWatts;
         }
-      }
-      //cout << "End requiredPowerTotal() = " << rtnWatts << endl;
-      return rtnWatts;
+      }      
+      float battBankWatts = batteryBankPower.getValue();
+      if ( !currentDevice->isOn() ) {
+        battBankWatts += currentDevice->requiredWatts;
+      } 
+      return std::max(requiredWatts,battBankWatts);
     });
 
     static struct FamilyRoomMasterSwitch : ifttt::PowerSwitch {
@@ -109,7 +114,7 @@ public:
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
       AtLeast<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {10,00,0},{15,45,00} };
+      TimeRangeConstraint timeRange { {9,45,0},{17,15,00} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
@@ -136,7 +141,7 @@ public:
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
       AtLeast<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {8,30,0},{16,00,00} };
+      TimeRangeConstraint timeRange { {8,30,0},{16,45,00} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
@@ -162,7 +167,7 @@ public:
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
       AtLeast<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {8,30,0},{16,30,0} };
+      TimeRangeConstraint timeRange { {8,30,0},{17,30,0} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
@@ -254,7 +259,7 @@ public:
           for ( auto s : { soc, chargersInputPower, chargersOutputPower, requiredPowerTotal, batteryBankVoltage }){
             cout << '"' << s.getTitle() << "\"=" << s.getValue() << ",";
           }
-          cout << strLogBuffer;
+          cout << "]" << std::endl << strLogBuffer << std::flush;
           //pPowerSwitch->printVerbose(); 
           //cout << endl;
         }

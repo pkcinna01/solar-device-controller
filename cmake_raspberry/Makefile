@@ -123,32 +123,113 @@ solar_ifttt/fast:
 	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/build
 .PHONY : solar_ifttt/fast
 
-automation/Sensor.o: automation/Sensor.cpp.o
+automation/capability/Capability.o: automation/capability/Capability.cpp.o
 
-.PHONY : automation/Sensor.o
+.PHONY : automation/capability/Capability.o
 
 # target to build an object file
-automation/Sensor.cpp.o:
-	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/Sensor.cpp.o
-.PHONY : automation/Sensor.cpp.o
+automation/capability/Capability.cpp.o:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/capability/Capability.cpp.o
+.PHONY : automation/capability/Capability.cpp.o
 
-automation/Sensor.i: automation/Sensor.cpp.i
+automation/capability/Capability.i: automation/capability/Capability.cpp.i
 
-.PHONY : automation/Sensor.i
+.PHONY : automation/capability/Capability.i
 
 # target to preprocess a source file
-automation/Sensor.cpp.i:
-	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/Sensor.cpp.i
-.PHONY : automation/Sensor.cpp.i
+automation/capability/Capability.cpp.i:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/capability/Capability.cpp.i
+.PHONY : automation/capability/Capability.cpp.i
 
-automation/Sensor.s: automation/Sensor.cpp.s
+automation/capability/Capability.s: automation/capability/Capability.cpp.s
 
-.PHONY : automation/Sensor.s
+.PHONY : automation/capability/Capability.s
 
 # target to generate assembly for a file
-automation/Sensor.cpp.s:
-	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/Sensor.cpp.s
-.PHONY : automation/Sensor.cpp.s
+automation/capability/Capability.cpp.s:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/capability/Capability.cpp.s
+.PHONY : automation/capability/Capability.cpp.s
+
+automation/constraint/Constraint.o: automation/constraint/Constraint.cpp.o
+
+.PHONY : automation/constraint/Constraint.o
+
+# target to build an object file
+automation/constraint/Constraint.cpp.o:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/constraint/Constraint.cpp.o
+.PHONY : automation/constraint/Constraint.cpp.o
+
+automation/constraint/Constraint.i: automation/constraint/Constraint.cpp.i
+
+.PHONY : automation/constraint/Constraint.i
+
+# target to preprocess a source file
+automation/constraint/Constraint.cpp.i:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/constraint/Constraint.cpp.i
+.PHONY : automation/constraint/Constraint.cpp.i
+
+automation/constraint/Constraint.s: automation/constraint/Constraint.cpp.s
+
+.PHONY : automation/constraint/Constraint.s
+
+# target to generate assembly for a file
+automation/constraint/Constraint.cpp.s:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/constraint/Constraint.cpp.s
+.PHONY : automation/constraint/Constraint.cpp.s
+
+automation/device/Device.o: automation/device/Device.cpp.o
+
+.PHONY : automation/device/Device.o
+
+# target to build an object file
+automation/device/Device.cpp.o:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/device/Device.cpp.o
+.PHONY : automation/device/Device.cpp.o
+
+automation/device/Device.i: automation/device/Device.cpp.i
+
+.PHONY : automation/device/Device.i
+
+# target to preprocess a source file
+automation/device/Device.cpp.i:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/device/Device.cpp.i
+.PHONY : automation/device/Device.cpp.i
+
+automation/device/Device.s: automation/device/Device.cpp.s
+
+.PHONY : automation/device/Device.s
+
+# target to generate assembly for a file
+automation/device/Device.cpp.s:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/device/Device.cpp.s
+.PHONY : automation/device/Device.cpp.s
+
+automation/sensor/Sensor.o: automation/sensor/Sensor.cpp.o
+
+.PHONY : automation/sensor/Sensor.o
+
+# target to build an object file
+automation/sensor/Sensor.cpp.o:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/sensor/Sensor.cpp.o
+.PHONY : automation/sensor/Sensor.cpp.o
+
+automation/sensor/Sensor.i: automation/sensor/Sensor.cpp.i
+
+.PHONY : automation/sensor/Sensor.i
+
+# target to preprocess a source file
+automation/sensor/Sensor.cpp.i:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/sensor/Sensor.cpp.i
+.PHONY : automation/sensor/Sensor.cpp.i
+
+automation/sensor/Sensor.s: automation/sensor/Sensor.cpp.s
+
+.PHONY : automation/sensor/Sensor.s
+
+# target to generate assembly for a file
+automation/sensor/Sensor.cpp.s:
+	$(MAKE) -f CMakeFiles/solar_ifttt.dir/build.make CMakeFiles/solar_ifttt.dir/automation/sensor/Sensor.cpp.s
+.PHONY : automation/sensor/Sensor.cpp.s
 
 ifttt/ifttt.o: ifttt/ifttt.cpp.o
 
@@ -213,9 +294,18 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... solar_ifttt"
-	@echo "... automation/Sensor.o"
-	@echo "... automation/Sensor.i"
-	@echo "... automation/Sensor.s"
+	@echo "... automation/capability/Capability.o"
+	@echo "... automation/capability/Capability.i"
+	@echo "... automation/capability/Capability.s"
+	@echo "... automation/constraint/Constraint.o"
+	@echo "... automation/constraint/Constraint.i"
+	@echo "... automation/constraint/Constraint.s"
+	@echo "... automation/device/Device.o"
+	@echo "... automation/device/Device.i"
+	@echo "... automation/device/Device.s"
+	@echo "... automation/sensor/Sensor.o"
+	@echo "... automation/sensor/Sensor.i"
+	@echo "... automation/sensor/Sensor.s"
 	@echo "... ifttt/ifttt.o"
 	@echo "... ifttt/ifttt.i"
 	@echo "... ifttt/ifttt.s"

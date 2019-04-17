@@ -2,7 +2,8 @@
 #include "ifttt/WebHookSession.h"
 #include "ifttt/WebHookEvent.h"
 #include "ifttt/PowerSwitch.h"
-#include "xmonit/PowerSwitch.h"
+//#include "xmonit/PowerSwitch.h"
+#include "xmonit/GpioPowerSwitch.h"
 #include "automation/Automation.h"
 #include "automation/json/JsonStreamWriter.h"
 #include "automation/constraint/ConstraintEventHandler.h"
@@ -91,7 +92,6 @@ public:
 
     static SensorFn requiredPowerTotal("Required Power", []()->float{ 
       float requiredWatts = 0;
-      //cout << "Begin requiredPowerTotal() count:" << devices.size() << endl;
       for( automation::PowerSwitch *pDevice : devices ) {
         //cout << "Device '" << pDevice->name << "' ON: " << pDevice->isOn() << ", Current: " << (pDevice == currentDevice) << endl;
         if ( pDevice->isOn() || pDevice == currentDevice ) {
@@ -99,7 +99,9 @@ public:
         }
       }      
       float battBankWatts = batteryBankPower.getValue();
-      if ( !currentDevice->isOn() ) {
+      if ( isnan(battBankWatts)) {
+        return requiredWatts;
+      } else if ( !currentDevice->isOn() ) {
         battBankWatts += currentDevice->requiredWatts;
       } 
       return std::max(requiredWatts,battBankWatts);
@@ -161,17 +163,19 @@ public:
 
     static struct FamilyRoomAuxSwitch : ifttt::PowerSwitch {
 
-      AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
-      AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
+      AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT+10, soc};
+      AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS+1, batteryBankVoltage};
       AtLeast<float,Sensor&> haveRequiredPower{requiredPowerTotal, chargersInputPower};
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
       AtLeast<float,Sensor&> fullSoc {100, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {8,30,0},{17,30,0} };
+      TimeRangeConstraint timeRange1 { {8,0,0},{12,0,0} };
+      TimeRangeConstraint timeRange2 { {12,0,0},{16,30,0} };
+      OrConstraint validTimes {{ &timeRange1, &timeRange2 }};
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
-      AndConstraint familyRmAuxConstraints {{&timeRange,/*&allMastersMustBeOn,*/
+      AndConstraint familyRmAuxConstraints {{&validTimes,/*&allMastersMustBeOn,*/
         &notSimultaneousToggleOn,&minVoltage,&fullSocOrEnoughPower,&minOffDuration}};
 
       FamilyRoomAuxSwitch() :
@@ -180,46 +184,38 @@ public:
         setOffEventLabel("family_room_aux_switch_off");
         fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(30*SECONDS).setFailMargin(15);
         minSoc.setPassDelayMs(3*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(25);
-        haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(25);
+        haveRequiredPower.setPassDelayMs(2*MINUTES).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(50);
         minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
         pConstraint = &familyRmAuxConstraints;
       }
     } familyRoomAuxSwitch;
     
-    /*
-    static struct Outlet1Switch : xmonit::PowerSwitch {
+    static struct Outlet1Switch : xmonit::GpioPowerSwitch {
 
-      AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
-      AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
-      AtLeast<float,Sensor&> haveRequiredPower{requiredPowerTotal, chargersInputPower};
-      AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
-      AtLeast<float,Sensor&> fullSoc {100, soc};
-      OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {8,30,0},{15,30,0} };
+      AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS+1, batteryBankVoltage};
+      AtLeast<float,Sensor&> enoughPower{requiredPowerTotal, chargersInputPower};
+      TimeRangeConstraint timeRange1 { {8,0,0},{12,0,0} };
+      TimeRangeConstraint timeRange2 { {12,0,0},{17,30,0} };
+      OrConstraint validTimes {{ &timeRange1, &timeRange2 }};
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
-      TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
-      AndConstraint allConstraints {{&timeRange,&notSimultaneousToggleOn,&minVoltage,&fullSocOrEnoughPower,&minOffDuration}};
+      TransitionDurationConstraint minOffDuration{5*MINUTES,&toggle,0,1};
+      AndConstraint allConstraints {{&validTimes,&notSimultaneousToggleOn,&minVoltage,&enoughPower,&minOffDuration}};
 
-      Outlet1Switch() :
-          //IMPORTANT: PowerSwitch ID in constructor must match a name of switch defined in the remote ATMega
-          xmonit::PowerSwitch("Sunroom Outlet 1",LIGHTS_SET_2_WATTS) {
-        fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(30*SECONDS).setFailMargin(15);
-        minSoc.setPassDelayMs(3*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(25);
-        haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(25);
+      Outlet1Switch() : xmonit::GpioPowerSwitch("Plant Lights", 15 /*GPIO PIN*/, LIGHTS_SET_2_WATTS) {
+        enoughPower.setPassDelayMs(2*MINUTES).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(50);
         minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
         pConstraint = &allConstraints;
       }
     } outlet1Switch;
-    */
 
-    devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch}; //, &outlet1Switch};
-    //json::JsonSerialWriter w;
+    devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch, &outlet1Switch};
+    json::JsonSerialWriter w;
     //w.printlnVectorObj("devices",devices,"",true);
     //w.printlnVectorObj("constraints",Constraint::all(),"",true);
 
     SimultaneousConstraint::connectListeners({&familyRoomMasterSwitch.simultaneousToggleOn, &familyRoomAuxSwitch.simultaneousToggleOn, 
-      &sunroomMasterSwitch.simultaneousToggleOn/*, &outlet1Switch.simultaneousToggleOn*/});    
+      &sunroomMasterSwitch.simultaneousToggleOn, &outlet1Switch.simultaneousToggleOn});    
 
     unsigned long nowMs = automation::millisecs();
     unsigned long syncTimeMs = nowMs;

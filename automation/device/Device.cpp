@@ -52,7 +52,6 @@ void Device::print(json::JsonStreamWriter& w, bool bVerbose, bool bIncludePrefix
   w.printlnNumberObj(F("id"), (unsigned long) id, ",");
   if ( bVerbose ) {
     w.printKey(F("constraint"));
-    cout << __PRETTY_FUNCTION__ << " device " << name << " constraint type: " << pConstraint->getType() << endl;
     pConstraint->print(w,bVerbose,json::PrefixOff);
     w.noPrefixPrintln(",");
     w.printlnVectorObj(F("capabilities"), capabilities,",", bVerbose);

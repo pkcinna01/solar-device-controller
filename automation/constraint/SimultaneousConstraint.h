@@ -59,9 +59,7 @@ class SimultaneousConstraint : public Constraint, public Capability::CapabilityL
             }
         }
         ss << ")";
-        string strTitle = ss.str();
-        cout << strTitle << flush << endl;
-        return strTitle;
+        return ss.str();
     }
 
     // add instance of this class as listener to a capability if it is in group of things to be throttled

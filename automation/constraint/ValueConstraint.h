@@ -154,7 +154,7 @@ namespace automation {
       }
     }
 
-    string getTitle() const override {      
+    string getTitle() const override {
       string rtn(this->valueSource.name);
       rtn += " ";
       rtn += this->getType();

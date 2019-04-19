@@ -43,6 +43,7 @@ using namespace Poco;
 #define LIGHTS_SET_2_WATTS 100
 
 #define MIN_SOC_PERCENT 48.25
+#define FULL_SOC_PERCENT 99.00
 
 bool iSignalCaught = 0;
 static void signalHandlerFn (int val) { iSignalCaught = val; }
@@ -114,9 +115,9 @@ public:
       AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
       AtLeast<float,Sensor&> haveRequiredPower{requiredPowerTotal, chargersInputPower};
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
-      AtLeast<float,Sensor&> fullSoc {100, soc};
+      AtLeast<float,Sensor&> fullSoc {FULL_SOC_PERCENT, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {9,45,0},{17,15,00} };
+      TimeRangeConstraint timeRange { {9,45,0},{17,00,00} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
@@ -126,9 +127,9 @@ public:
           ifttt::PowerSwitch("Family Room Master",DEFAULT_APPLIANCE_WATTS) {
         setOnEventLabel("family_room_master_switch_on");
         setOffEventLabel("family_room_master_switch_off");
-        fullSoc.setPassDelayMs(30*SECONDS).setFailDelayMs(90*SECONDS).setFailMargin(25);
-        minSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(120*SECONDS).setFailMargin(20).setPassMargin(5);
-        haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(120*SECONDS).setFailMargin(125).setPassMargin(100);
+        fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(90*SECONDS).setFailMargin(25);
+        minSoc.setPassDelayMs(2*MINUTES).setFailDelayMs(120*SECONDS).setFailMargin(20).setPassMargin(5);
+        haveRequiredPower.setPassDelayMs(2*MINUTES).setFailDelayMs(120*SECONDS).setFailMargin(75).setPassMargin(100);
         minVoltage.setFailDelayMs(30*SECONDS).setFailMargin(0.5);
         pConstraint = &familyRmMasterConstraints;
       }
@@ -141,9 +142,9 @@ public:
       AtLeast<float,Sensor&> cutoffVoltage {22.75, batteryBankVoltage};
       AtLeast<float,Sensor&> haveRequiredPower{requiredPowerTotal, chargersInputPower};
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
-      AtLeast<float,Sensor&> fullSoc {100, soc};
+      AtLeast<float,Sensor&> fullSoc {FULL_SOC_PERCENT, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
-      TimeRangeConstraint timeRange { {8,30,0},{16,45,00} };
+      TimeRangeConstraint timeRange { {8,30,0},{17,15,00} };
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
       TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
@@ -153,9 +154,9 @@ public:
           ifttt::PowerSwitch("Sunroom Master",DEFAULT_APPLIANCE_WATTS) {
         setOnEventLabel("sunroom_master_switch_on");
         setOffEventLabel("sunroom_master_switch_off");
-        fullSoc.setPassDelayMs(30*SECONDS).setFailDelayMs(120*SECONDS).setFailMargin(25);
-        minSoc.setPassDelayMs(2*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(20).setPassMargin(10);
-        haveRequiredPower.setPassDelayMs(30*SECONDS).setFailDelayMs(45*SECONDS).setFailMargin(125).setPassMargin(100);
+        fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(120*SECONDS).setFailMargin(25);
+        minSoc.setPassDelayMs(2.25*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(20).setPassMargin(10);
+        haveRequiredPower.setPassDelayMs(2.25*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(75).setPassMargin(100);
         minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
         pConstraint = &sunroomMasterConstraints;
       }
@@ -163,14 +164,14 @@ public:
 
     static struct FamilyRoomAuxSwitch : ifttt::PowerSwitch {
 
-      AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT+10, soc};
-      AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS+1, batteryBankVoltage};
+      AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
+      AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
       AtLeast<float,Sensor&> haveRequiredPower{requiredPowerTotal, chargersInputPower};
       AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
-      AtLeast<float,Sensor&> fullSoc {100, soc};
+      AtLeast<float,Sensor&> fullSoc {FULL_SOC_PERCENT, soc};
       OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
       TimeRangeConstraint timeRange1 { {8,0,0},{12,0,0} };
-      TimeRangeConstraint timeRange2 { {12,0,0},{16,30,0} };
+      TimeRangeConstraint timeRange2 { {12,0,0},{17,00,0} };
       OrConstraint validTimes {{ &timeRange1, &timeRange2 }};
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
@@ -182,9 +183,9 @@ public:
           ifttt::PowerSwitch("Family Room Auxiliary",LIGHTS_SET_1_WATTS) {
         setOnEventLabel("family_room_aux_switch_on");
         setOffEventLabel("family_room_aux_switch_off");
-        fullSoc.setPassDelayMs(1*MINUTES).setFailDelayMs(30*SECONDS).setFailMargin(15);
-        minSoc.setPassDelayMs(3*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(25);
-        haveRequiredPower.setPassDelayMs(2*MINUTES).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(50);
+        fullSoc.setPassDelayMs(0.75*MINUTES).setFailDelayMs(2*MINUTES).setFailMargin(15);
+        minSoc.setPassDelayMs(2*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(25);
+        haveRequiredPower.setPassDelayMs(2*MINUTES).setFailDelayMs(5*MINUTES).setFailMargin(50).setPassMargin(50);
         minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
         pConstraint = &familyRmAuxConstraints;
       }
@@ -192,24 +193,32 @@ public:
     
     static struct Outlet1Switch : xmonit::GpioPowerSwitch {
 
-      AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS+1, batteryBankVoltage};
-      AtLeast<float,Sensor&> enoughPower{requiredPowerTotal, chargersInputPower};
+      AtLeast<float,Sensor&> minSoc {MIN_SOC_PERCENT, soc};
+      AtLeast<float,Sensor&> minVoltage {DEFAULT_MIN_VOLTS, batteryBankVoltage};
+      AtLeast<float,Sensor&> haveRequiredPower{requiredPowerTotal, chargersInputPower};
+      AndConstraint enoughPower {{&minSoc, &haveRequiredPower}};
+      AtLeast<float,Sensor&> fullSoc {FULL_SOC_PERCENT, soc};
+      OrConstraint fullSocOrEnoughPower {{&fullSoc, &enoughPower}};
       TimeRangeConstraint timeRange1 { {8,0,0},{12,0,0} };
-      TimeRangeConstraint timeRange2 { {12,0,0},{17,30,0} };
+      TimeRangeConstraint timeRange2 { {12,0,0},{18,00,0} };
       OrConstraint validTimes {{ &timeRange1, &timeRange2 }};
       SimultaneousConstraint simultaneousToggleOn {2*MINUTES,&toggle};
       NotConstraint notSimultaneousToggleOn {&simultaneousToggleOn};
-      TransitionDurationConstraint minOffDuration{5*MINUTES,&toggle,0,1};
-      AndConstraint allConstraints {{&validTimes,&notSimultaneousToggleOn,&minVoltage,&enoughPower,&minOffDuration}};
+      TransitionDurationConstraint minOffDuration{4*MINUTES,&toggle,0,1};
+      AndConstraint plantLightsConstraints {{&validTimes,/*&allMastersMustBeOn,*/
+        &notSimultaneousToggleOn,&minVoltage,&fullSocOrEnoughPower,&minOffDuration}};
+
 
       Outlet1Switch() : xmonit::GpioPowerSwitch("Plant Lights", 15 /*GPIO PIN*/, LIGHTS_SET_2_WATTS) {
-        enoughPower.setPassDelayMs(2*MINUTES).setFailDelayMs(5*MINUTES).setFailMargin(5).setPassMargin(50);
+        fullSoc.setPassDelayMs(0.5*MINUTES).setFailDelayMs(2*MINUTES).setFailMargin(15);
+        minSoc.setPassDelayMs(2*MINUTES).setFailDelayMs(45*SECONDS).setFailMargin(25);
+        haveRequiredPower.setPassDelayMs(2*MINUTES).setFailDelayMs(5*MINUTES).setFailMargin(50).setPassMargin(50);
         minVoltage.setFailDelayMs(60*SECONDS).setFailMargin(0.5);
-        pConstraint = &allConstraints;
+        pConstraint = &plantLightsConstraints;
       }
     } outlet1Switch;
 
-    devices = {&familyRoomMasterSwitch, &sunroomMasterSwitch, &familyRoomAuxSwitch, &outlet1Switch};
+    devices = {&outlet1Switch, &familyRoomAuxSwitch, &sunroomMasterSwitch, &familyRoomMasterSwitch };
     json::JsonSerialWriter w;
     //w.printlnVectorObj("devices",devices,"",true);
     //w.printlnVectorObj("constraints",Constraint::all(),"",true);
@@ -222,7 +231,7 @@ public:
 
     bool bFirstTime = true;
 
-    TimeRangeConstraint solarTimeRange({0,0,0},{17,00,0}); 
+    TimeRangeConstraint solarTimeRange({0,0,0},{18,00,0}); 
     
     struct sigaction action;
     action.sa_handler = signalHandlerFn;

@@ -2,7 +2,6 @@
 #define SOLAR_IFTTT_POWERSWITCH_H
 
 #include "../automation/device/PowerSwitch.h"
-#include "ifttt.h"
 #include "WebHookSession.h"
 #include "WebHookEvent.h"
 
@@ -16,9 +15,9 @@ namespace ifttt {
 
     bool bLastValueSent;
 
-    string strOnEventLabel, strOffEventLabel;
+    string strIftttKey, strOnEventLabel, strOffEventLabel;
 
-    PowerSwitch(const string &id, float requiredWatts) : automation::PowerSwitch(id,requiredWatts), bLastValueSent(false) {}
+    PowerSwitch(const string &id, const string& iftttKey, float requiredWatts) : automation::PowerSwitch(id,requiredWatts), strIftttKey(iftttKey), bLastValueSent(false) {}
 
     virtual PowerSwitch& setOnEventLabel(const string& onLabel) {
       strOnEventLabel = onLabel;
@@ -43,7 +42,7 @@ namespace ifttt {
       bError = false;
       string eventLabel = bOn ? strOnEventLabel : strOffEventLabel;
       WebHookEvent evt(eventLabel);
-      auto pSession = std::make_unique<WebHookSession>(ifttt::KEY);
+      auto pSession = std::make_unique<WebHookSession>(strIftttKey);
       for( int i = 0; i < MAX_RETRY_CNT; i++) {
         try {
           if (pSession->sendEvent(evt)) {

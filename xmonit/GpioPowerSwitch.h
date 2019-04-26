@@ -17,19 +17,6 @@
 namespace xmonit {
 
 
-  int exec(const std::string& cmd, std::string& strOutput) {
-    std::array<char, 128> buffer;
-    strOutput.clear();
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
-    if (!pipe) {      
-        return -1;
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        strOutput += buffer.data();
-    }
-    return 0;
-  }
-
   class GpioPowerSwitch : public automation::PowerSwitch {
   public:
     RTTI_GET_TYPE_IMPL(xmonit,GpioPowerSwitch);
@@ -42,7 +29,7 @@ namespace xmonit {
       std::stringstream cmdStream;
       cmdStream << "gpio mode " << gpioPin << " out";
       std::string response;
-      int rtn = xmonit::exec(cmdStream.str(),response);
+      int rtn = exec(cmdStream.str(),response);
       automation::logBuffer << __PRETTY_FUNCTION__ << " cmd='" << cmdStream.str() << "' rtn=" << rtn << endl;
       bError = rtn != 0;
     }
@@ -51,7 +38,7 @@ namespace xmonit {
       std::stringstream cmdStream;
       cmdStream << "gpio read " << gpioPin;
       std::string response;
-      int rtn = xmonit::exec(cmdStream.str(),response);
+      int rtn = exec(cmdStream.str(),response);
       automation::text::rtrim(response);
       //automation::logBuffer << __PRETTY_FUNCTION__ << " cmd='" << cmdStream.str() << "' response='" << response << "'"<< endl;
       bError = rtn != 0;
@@ -62,10 +49,25 @@ namespace xmonit {
       std::stringstream cmdStream;
       cmdStream << "gpio write " << gpioPin << " " << (bOn?"1":"0");
       std::string response;
-      int rtn = xmonit::exec(cmdStream.str(),response);
+      int rtn = exec(cmdStream.str(),response);
       automation::logBuffer << __PRETTY_FUNCTION__ << " cmd='" << cmdStream.str() << "' rtn=" << rtn << endl;
       bError = rtn != 0;
     }
+
+    protected:
+    int exec(const std::string& cmd, std::string& strOutput) const {
+      std::array<char, 128> buffer;
+      strOutput.clear();
+      std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+      if (!pipe) {      
+          return -1;
+      }
+      while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+          strOutput += buffer.data();
+      }
+      return 0;
+    }
+
   };
 }
 #endif //SOLAR_IFTTT_TOGGLE_H

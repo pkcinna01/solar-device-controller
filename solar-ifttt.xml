@@ -1,0 +1,9 @@
+<config>
+    <prometheus exportBindAddress="127.0.0.1:8095" solarMetricsUrl="http://solar:9202/actuator/prometheus"/>
+    <ifttt key="XXXXXXXXXXXXXXXXXxx"/>
+    <httpListener port="8096">
+        <allowedHosts>
+            <host>127.0.0.1</host>
+        </allowedHosts>
+    </httpListener>
+</config>

@@ -1,7 +1,6 @@
 #ifndef IFTTT_WEBHOOKEVENT_H
 #define IFTTT_WEBHOOKEVENT_H
 
-#include "ifttt.h"
 #include <string>
 
 using namespace std;

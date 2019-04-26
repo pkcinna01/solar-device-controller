@@ -1,7 +1,6 @@
 #ifndef IFTTT_WEBHOOKSESSION_H
 #define IFTTT_WEBHOOKSESSION_H
 
-#include "ifttt.h"
 #include "WebHookEvent.h"
 #include "../automation/Automation.h"
 #include <Poco/Net/HTTPSClientSession.h>

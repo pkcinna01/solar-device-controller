@@ -23,7 +23,6 @@ using namespace std;
 namespace Prometheus
 {
 
-const URI URL("http://solar:9202/actuator/prometheus");
 const RegularExpression METRIC_RE("^(\\w+)([{](.*?),?[}])?\\s+(.*)", 0, true);
 const RegularExpression METRIC_ATTRIBS_RE("^\\s*(\\w+)\\s*=\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*,?\\s*", 0, true);
 
@@ -94,44 +93,6 @@ class MetricMap : public unordered_map<string, MetricVector>
   }
 };
 
-bool parseMetrics(istream &inputStream, MetricMap &metricsMap, function<bool(const Metric &)> &metricFilter)
-{
-  for (string line; getline(inputStream, line);)
-  {
-    if (Prometheus::METRIC_RE.match(line))
-    {
-      vector<string> captures;
-      Prometheus::METRIC_RE.split(line, captures);
-      string strKey(captures[1]);
-      string strAttributes(captures[3]);
-      string strVal(captures[4]);
-      //cout << ">>>" << strKey << "{" << strAttributes << "} " << strVal << endl;
-      double value = 0;
-      if (NumberParser::tryParseFloat(strVal, value))
-      {
-        RegularExpression::MatchVec matches;
-        Prometheus::Metric metric;
-        metric.name = strKey;
-        metric.value = value;
-        while (Prometheus::METRIC_ATTRIBS_RE.split(strAttributes, captures))
-        {
-          strAttributes = strAttributes.substr(captures[0].length());
-          metric.attributes[captures[1]] = captures[2];
-        }
-        if (metricFilter(metric))
-        {
-          metricsMap[strKey].push_back(metric);
-        }
-      }
-    }
-    else if (!line.empty() && line[0] != '#')
-    {
-      std::cerr << "Failed parsing Prometheus record: " << line << endl;
-      return false;
-    }
-  }
-  return true;
-}
 
 class DataSource
 {
@@ -148,9 +109,47 @@ public:
                                                                                   session(url.getHost(), url.getPort()),
                                                                                   path(url.getPathAndQuery())
   {
-
     if (path.empty())
       path = "/";
+  }
+
+  bool parseMetrics(istream &inputStream, MetricMap &metricsMap, function<bool(const Metric &)> &metricFilter)
+  {
+    for (string line; getline(inputStream, line);)
+    {
+      if (Prometheus::METRIC_RE.match(line))
+      {
+        vector<string> captures;
+        Prometheus::METRIC_RE.split(line, captures);
+        string strKey(captures[1]);
+        string strAttributes(captures[3]);
+        string strVal(captures[4]);
+        //cout << ">>>" << strKey << "{" << strAttributes << "} " << strVal << endl;
+        double value = 0;
+        if (NumberParser::tryParseFloat(strVal, value))
+        {
+          RegularExpression::MatchVec matches;
+          Prometheus::Metric metric;
+          metric.name = strKey;
+          metric.value = value;
+          while (Prometheus::METRIC_ATTRIBS_RE.split(strAttributes, captures))
+          {
+            strAttributes = strAttributes.substr(captures[0].length());
+            metric.attributes[captures[1]] = captures[2];
+          }
+          if (metricFilter(metric))
+          {
+            metricsMap[strKey].push_back(metric);
+          }
+        }
+      }
+      else if (!line.empty() && line[0] != '#')
+      {
+        std::cerr << "Failed parsing Prometheus record: " << line << endl;
+        return false;
+      }
+    }
+    return true;
   }
 
   virtual bool loadMetrics()
@@ -166,7 +165,7 @@ public:
 
       if (response.getStatus() == Poco::Net::HTTPResponse::HTTP_OK)
       {
-        if (!Prometheus::parseMetrics(rs, metrics, metricFilter))
+        if (!parseMetrics(rs, metrics, metricFilter))
         {
           cerr << "FAILED parsing metrics." << endl;
           automation::sleep(5000);
@@ -175,7 +174,7 @@ public:
       }
       else
       {
-        cerr << "FAILED: " << response.getReason() << endl;
+        cerr << "FAILED retrieving metrics.  URL: " << url.toString() << ", reason: " << Poco::Net::HTTPResponse::getReasonForStatus(response.getStatus()) << endl;
         automation::sleep(5000);
         return false;
       }

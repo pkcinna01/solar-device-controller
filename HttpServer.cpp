@@ -35,7 +35,7 @@ void DefaultRequestHandler::handleRequest(HTTPServerRequest &req, HTTPServerResp
     if (find(allowedIpAddresses.begin(), allowedIpAddresses.end(), clientAddress) == allowedIpAddresses.end())
     {
       respObj.set("respCode", -1);
-      respObj.set("respMsg", "Unauthorized request origin");
+      respObj.set("respMsg", string("Unauthorized request origin: ") + clientAddress.toString());
       respStatus = HTTPResponse::HTTP_UNAUTHORIZED;
     }
     else if (/*id.isEmpty() ||*/ cmd.isEmpty())
@@ -127,5 +127,32 @@ void DefaultRequestHandler::handleRequest(HTTPServerRequest &req, HTTPServerResp
     cerr << "ERROR: Timed out waiting for main application to update a device.  Skipping HTTP request: " << req.getURI() << endl;
   }
 }
+
+  void HttpServer::init( Poco::Util::AbstractConfiguration& conf)
+  {
+    int port = conf.getInt("httpListener[@port]");
+
+    std::vector<Poco::Net::IPAddress> allowedIpAddresses;  
+    std::string strIp = conf.getString("httpListener.allowedHosts.host[0]","");
+    int i = 0;
+    while ( !strIp.empty() ) {
+      allowedIpAddresses.push_back(Poco::Net::IPAddress(strIp));
+      stringstream ss;
+      ss << "httpListener.allowedHosts.host[" << ++i << "]";
+      std::string strKey(ss.str());
+      strIp = conf.getString(strKey,"");
+    }
+    cout << "Listen port: " << port << endl;
+    for( auto& ipAddr : allowedIpAddresses ) {
+      cout << "Allowed Origin: " << ipAddr.toString() << endl;
+    }
+    pHttpServerImpl = unique_ptr<HTTPServer>(
+      new HTTPServer(
+        new RequestHandlerFactory(mutex,allowedIpAddresses), 
+        ServerSocket(port), 
+        new HTTPServerParams
+      )
+    );
+  }
 
 } // namespace xmonit

@@ -53,16 +53,24 @@ public:
   virtual HTTPRequestHandler* createRequestHandler(const HTTPServerRequest &);
 };
 
-class HttpServer : public HTTPServer {
+class HttpServer  {
 
 protected:
+std::unique_ptr<HTTPServer> pHttpServerImpl;
 
 public:
   Mutex mutex;
 
-  HttpServer(int port, std::vector<Poco::Net::IPAddress>& allowedIpAddresses) : HTTPServer(new RequestHandlerFactory(mutex,allowedIpAddresses), ServerSocket(port), new HTTPServerParams) {
-
+  void init( Poco::Util::AbstractConfiguration& conf);
+  
+  void start() {
+    pHttpServerImpl->start();
   }
+
+  void stop() {
+    pHttpServerImpl->stop();
+  }
+
 };
 }
 #endif

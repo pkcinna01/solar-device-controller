@@ -276,7 +276,7 @@ int IftttApp::main(const std::vector<std::string> &args)
 
   bool bFirstTime = true;
 
-  TimeRangeConstraint solarTimeRange({0, 0, 0}, {18, 00, 0});
+  TimeRangeConstraint solarTimeRange({0, 0, 0}, {18, 30, 0});
 
   struct sigaction action;
   action.sa_handler = signalHandlerFn;
@@ -286,18 +286,11 @@ int IftttApp::main(const std::vector<std::string> &args)
   sigaction(SIGTERM, &action, NULL);
   automation::clearLogBuffer();
 
-  std::vector<Poco::Net::IPAddress> allowedIpAddresses;
-  std::string strIp = conf.getString("httpListener.allowedHosts.host[0]","");
-  int i = 0;
-  while ( !strIp.empty() ) {
-    allowedIpAddresses.push_back(Poco::Net::IPAddress(strIp));
-    stringstream ss;
-    ss << "httpListener.allowedHosts.host[" << ++i << "]";
-    std::string strKey(ss.str());
-    strIp = conf.getString(strKey,"");
-  }
-  xmonit::HttpServer httpServer(conf.getInt("httpListener[@port]"),allowedIpAddresses);
+  cout << "============= Begin HttpListener Setup =============" << endl;
+  xmonit::HttpServer httpServer;
+  httpServer.init(conf);
   httpServer.start();
+  cout << "============= End HttpListener Setup =============" << endl;
 
   Exposer exposer{conf.getString("prometheus[@exportBindAddress]", "127.0.0.1:8095")};
 

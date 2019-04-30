@@ -1,6 +1,6 @@
 #include <chrono>
 #include <Poco/Thread.h>
-#include "../automation/Automation.h"
+#include "automation/Automation.h"
 
 #include <sstream>
 

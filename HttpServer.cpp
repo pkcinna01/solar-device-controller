@@ -1,5 +1,5 @@
 #include "HttpServer.h"
-#include "IftttApp.h"
+#include "DeviceControllerApp.h"
 
 #include "Poco/Mutex.h"
 
@@ -54,11 +54,11 @@ void DefaultRequestHandler::handleRequest(HTTPServerRequest &req, HTTPServerResp
           Poco::Dynamic::Var var = pReqObj->get("deviceId");
           if ( !var.isEmpty() ) {
             int deviceId = var.convert<int>();
-            IftttApp::pInstance->devices.findById(deviceId, foundDevices);
+            DeviceControllerApp::pInstance->devices.findById(deviceId, foundDevices);
           } else {
             var = pReqObj->get("deviceName");
             if ( !var.isEmpty() ) {
-              IftttApp::pInstance->devices.findByTitleLike(var.toString().c_str(), foundDevices);
+              DeviceControllerApp::pInstance->devices.findByTitleLike(var.toString().c_str(), foundDevices);
             } 
           }
           if (foundDevices.empty())
@@ -94,10 +94,10 @@ void DefaultRequestHandler::handleRequest(HTTPServerRequest &req, HTTPServerResp
           Poco::Dynamic::Var devIdVar = pReqObj->get("deviceId");
           if ( !devIdVar.isEmpty() ) {
             int deviceId = devIdVar.convert<int>();
-            IftttApp::pInstance->devices.findById(deviceId, foundDevices);
+            DeviceControllerApp::pInstance->devices.findById(deviceId, foundDevices);
           } else {
             Poco::Dynamic::Var devNameVar = pReqObj->get("deviceName");
-            IftttApp::pInstance->devices.findByTitleLike(devNameVar.isEmpty() ? "*" : devNameVar.toString().c_str(), foundDevices);
+            DeviceControllerApp::pInstance->devices.findByTitleLike(devNameVar.isEmpty() ? "*" : devNameVar.toString().c_str(), foundDevices);
           }
           w.printVector(foundDevices,"", bVerbose);
           JSON::Parser parser;

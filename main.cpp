@@ -1,6 +1,6 @@
 
 
-#include "IftttApp.h"
+#include "DeviceControllerApp.h"
 
 
-POCO_APP_MAIN(IftttApp);
+POCO_APP_MAIN(DeviceControllerApp);

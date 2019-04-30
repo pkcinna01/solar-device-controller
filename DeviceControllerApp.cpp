@@ -1,9 +1,6 @@
-#include "IftttApp.h"
+#include "DeviceControllerApp.h"
 
-#include "ifttt/WebHookSession.h"
-#include "ifttt/WebHookEvent.h"
-#include "ifttt/PowerSwitch.h"
-//#include "xmonit/PowerSwitch.h"
+#include "xmonit/OpenHabSwitch.h"
 #include "xmonit/GpioPowerSwitch.h"
 #include "automation/Automation.h"
 #include "automation/json/JsonStreamWriter.h"
@@ -29,13 +26,13 @@
 #include <prometheus/exposer.h>
 #include <prometheus/registry.h>
 
-IftttApp* IftttApp::pInstance(nullptr);
+DeviceControllerApp* DeviceControllerApp::pInstance(nullptr);
 
-bool IftttApp::iSignalCaught = 0;
+bool DeviceControllerApp::iSignalCaught = 0;
 
-void IftttApp::signalHandlerFn (int val) { iSignalCaught = val; }
+void DeviceControllerApp::signalHandlerFn (int val) { iSignalCaught = val; }
 
-int IftttApp::main(const std::vector<std::string> &args)
+int DeviceControllerApp::main(const std::vector<std::string> &args)
 {
 
   using namespace prometheus;
@@ -119,7 +116,7 @@ int IftttApp::main(const std::vector<std::string> &args)
     }
   };
 
-  static struct FamilyRoomMasterSwitch : ifttt::PowerSwitch
+  static struct FamilyRoomMasterSwitch : xmonit::OpenHabSwitch
   {
 
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
@@ -136,10 +133,8 @@ int IftttApp::main(const std::vector<std::string> &args)
     AndConstraint familyRmMasterConstraints{{&timeRange, &notSimultaneousToggleOn, &minVoltage, &cutoffVoltage, &fullSocOrEnoughPower, &minOffDuration}};
     PowerSwitchMetrics metrics;
 
-    FamilyRoomMasterSwitch(const string &strIftttKey) : ifttt::PowerSwitch("Family Room Master", strIftttKey, DEFAULT_APPLIANCE_WATTS)
+    FamilyRoomMasterSwitch() : xmonit::OpenHabSwitch("Family Room Master", "FamilyRoomMaster_Switch", DEFAULT_APPLIANCE_WATTS)
     {
-      setOnEventLabel("family_room_master_switch_on");
-      setOffEventLabel("family_room_master_switch_off");
       fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(90 * SECONDS).setFailMargin(25);
       minSoc.setPassDelayMs(2 * MINUTES).setFailDelayMs(120 * SECONDS).setFailMargin(20).setPassMargin(5);
       haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(120 * SECONDS).setFailMargin(75).setPassMargin(100);
@@ -148,9 +143,9 @@ int IftttApp::main(const std::vector<std::string> &args)
       metrics.init(this);
     }
 
-  } familyRoomMasterSwitch(strIftttKey);
+  } familyRoomMasterSwitch;
 
-  static struct SunroomMasterSwitch : ifttt::PowerSwitch
+  static struct SunroomMasterSwitch : xmonit::OpenHabSwitch
   {
 
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
@@ -167,10 +162,8 @@ int IftttApp::main(const std::vector<std::string> &args)
     AndConstraint sunroomMasterConstraints{{&timeRange, &notSimultaneousToggleOn, &minVoltage, &cutoffVoltage, &fullSocOrEnoughPower, &minOffDuration}};
     PowerSwitchMetrics metrics;
 
-    SunroomMasterSwitch(const string &strIftttKey) : ifttt::PowerSwitch("Sunroom Master", strIftttKey, DEFAULT_APPLIANCE_WATTS)
+    SunroomMasterSwitch() : xmonit::OpenHabSwitch("Sunroom Master", "SunroomMaster_Switch", DEFAULT_APPLIANCE_WATTS)
     {
-      setOnEventLabel("sunroom_master_switch_on");
-      setOffEventLabel("sunroom_master_switch_off");
       fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(120 * SECONDS).setFailMargin(25);
       minSoc.setPassDelayMs(2.25 * MINUTES).setFailDelayMs(45 * SECONDS).setFailMargin(20).setPassMargin(10);
       haveRequiredPower.setPassDelayMs(2.25 * MINUTES).setFailDelayMs(45 * SECONDS).setFailMargin(75).setPassMargin(100);
@@ -178,9 +171,9 @@ int IftttApp::main(const std::vector<std::string> &args)
       pConstraint = &sunroomMasterConstraints;
       metrics.init(this);
     }
-  } sunroomMasterSwitch(strIftttKey);
+  } sunroomMasterSwitch;
 
-  static struct FamilyRoomAuxSwitch : ifttt::PowerSwitch
+  static struct FamilyRoomAuxSwitch : xmonit::OpenHabSwitch
   {
 
     AtLeast<float, Sensor &> minSoc{MIN_SOC_PERCENT, soc};
@@ -199,10 +192,8 @@ int IftttApp::main(const std::vector<std::string> &args)
                                           &notSimultaneousToggleOn, &minVoltage, &fullSocOrEnoughPower, &minOffDuration}};
     PowerSwitchMetrics metrics;
 
-    FamilyRoomAuxSwitch(const string &strIftttKey) : ifttt::PowerSwitch("Family Room Auxiliary", strIftttKey, LIGHTS_SET_1_WATTS)
+    FamilyRoomAuxSwitch() : xmonit::OpenHabSwitch("Family Room Plant Lights", "FamilyRoomPlantLights_Switch", LIGHTS_SET_1_WATTS)
     {
-      setOnEventLabel("family_room_aux_switch_on");
-      setOffEventLabel("family_room_aux_switch_off");
       fullSoc.setPassDelayMs(0.75 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(15);
       minSoc.setPassDelayMs(2 * MINUTES).setFailDelayMs(45 * SECONDS).setFailMargin(25);
       haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(5 * MINUTES).setFailMargin(50).setPassMargin(10);
@@ -210,7 +201,7 @@ int IftttApp::main(const std::vector<std::string> &args)
       pConstraint = &familyRmAuxConstraints;
       metrics.init(this);
     }
-  } familyRoomAuxSwitch(strIftttKey);
+  } familyRoomAuxSwitch;
 
   static struct Outlet1Switch : xmonit::GpioPowerSwitch
   {
@@ -269,7 +260,7 @@ int IftttApp::main(const std::vector<std::string> &args)
   //w.printlnVectorObj("constraints",Constraint::all(),"",true);
 
   SimultaneousConstraint::connectListeners({&familyRoomMasterSwitch.simultaneousToggleOn, &familyRoomAuxSwitch.simultaneousToggleOn,
-                                            &sunroomMasterSwitch.simultaneousToggleOn /*, &outlet1Switch.simultaneousToggleOn*/});
+                                            &sunroomMasterSwitch.simultaneousToggleOn, &outlet1Switch.simultaneousToggleOn});
 
   unsigned long nowMs = automation::millisecs();
   unsigned long syncTimeMs = nowMs;

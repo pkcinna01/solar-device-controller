@@ -111,17 +111,71 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named solar-ifttt
+# Target rules for targets named solar-device-controller
 
 # Build rule for target.
-solar-ifttt: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 solar-ifttt
-.PHONY : solar-ifttt
+solar-device-controller: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 solar-device-controller
+.PHONY : solar-device-controller
 
 # fast build rule for target.
-solar-ifttt/fast:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/build
-.PHONY : solar-ifttt/fast
+solar-device-controller/fast:
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/build
+.PHONY : solar-device-controller/fast
+
+AutomationPlatformSpecific.o: AutomationPlatformSpecific.cpp.o
+
+.PHONY : AutomationPlatformSpecific.o
+
+# target to build an object file
+AutomationPlatformSpecific.cpp.o:
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/AutomationPlatformSpecific.cpp.o
+.PHONY : AutomationPlatformSpecific.cpp.o
+
+AutomationPlatformSpecific.i: AutomationPlatformSpecific.cpp.i
+
+.PHONY : AutomationPlatformSpecific.i
+
+# target to preprocess a source file
+AutomationPlatformSpecific.cpp.i:
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/AutomationPlatformSpecific.cpp.i
+.PHONY : AutomationPlatformSpecific.cpp.i
+
+AutomationPlatformSpecific.s: AutomationPlatformSpecific.cpp.s
+
+.PHONY : AutomationPlatformSpecific.s
+
+# target to generate assembly for a file
+AutomationPlatformSpecific.cpp.s:
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/AutomationPlatformSpecific.cpp.s
+.PHONY : AutomationPlatformSpecific.cpp.s
+
+DeviceControllerApp.o: DeviceControllerApp.cpp.o
+
+.PHONY : DeviceControllerApp.o
+
+# target to build an object file
+DeviceControllerApp.cpp.o:
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/DeviceControllerApp.cpp.o
+.PHONY : DeviceControllerApp.cpp.o
+
+DeviceControllerApp.i: DeviceControllerApp.cpp.i
+
+.PHONY : DeviceControllerApp.i
+
+# target to preprocess a source file
+DeviceControllerApp.cpp.i:
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/DeviceControllerApp.cpp.i
+.PHONY : DeviceControllerApp.cpp.i
+
+DeviceControllerApp.s: DeviceControllerApp.cpp.s
+
+.PHONY : DeviceControllerApp.s
+
+# target to generate assembly for a file
+DeviceControllerApp.cpp.s:
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/DeviceControllerApp.cpp.s
+.PHONY : DeviceControllerApp.cpp.s
 
 HttpServer.o: HttpServer.cpp.o
 
@@ -129,7 +183,7 @@ HttpServer.o: HttpServer.cpp.o
 
 # target to build an object file
 HttpServer.cpp.o:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/HttpServer.cpp.o
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/HttpServer.cpp.o
 .PHONY : HttpServer.cpp.o
 
 HttpServer.i: HttpServer.cpp.i
@@ -138,7 +192,7 @@ HttpServer.i: HttpServer.cpp.i
 
 # target to preprocess a source file
 HttpServer.cpp.i:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/HttpServer.cpp.i
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/HttpServer.cpp.i
 .PHONY : HttpServer.cpp.i
 
 HttpServer.s: HttpServer.cpp.s
@@ -147,35 +201,8 @@ HttpServer.s: HttpServer.cpp.s
 
 # target to generate assembly for a file
 HttpServer.cpp.s:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/HttpServer.cpp.s
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/HttpServer.cpp.s
 .PHONY : HttpServer.cpp.s
-
-IftttApp.o: IftttApp.cpp.o
-
-.PHONY : IftttApp.o
-
-# target to build an object file
-IftttApp.cpp.o:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/IftttApp.cpp.o
-.PHONY : IftttApp.cpp.o
-
-IftttApp.i: IftttApp.cpp.i
-
-.PHONY : IftttApp.i
-
-# target to preprocess a source file
-IftttApp.cpp.i:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/IftttApp.cpp.i
-.PHONY : IftttApp.cpp.i
-
-IftttApp.s: IftttApp.cpp.s
-
-.PHONY : IftttApp.s
-
-# target to generate assembly for a file
-IftttApp.cpp.s:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/IftttApp.cpp.s
-.PHONY : IftttApp.cpp.s
 
 automation/capability/Capability.o: automation/capability/Capability.cpp.o
 
@@ -183,7 +210,7 @@ automation/capability/Capability.o: automation/capability/Capability.cpp.o
 
 # target to build an object file
 automation/capability/Capability.cpp.o:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/capability/Capability.cpp.o
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/capability/Capability.cpp.o
 .PHONY : automation/capability/Capability.cpp.o
 
 automation/capability/Capability.i: automation/capability/Capability.cpp.i
@@ -192,7 +219,7 @@ automation/capability/Capability.i: automation/capability/Capability.cpp.i
 
 # target to preprocess a source file
 automation/capability/Capability.cpp.i:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/capability/Capability.cpp.i
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/capability/Capability.cpp.i
 .PHONY : automation/capability/Capability.cpp.i
 
 automation/capability/Capability.s: automation/capability/Capability.cpp.s
@@ -201,7 +228,7 @@ automation/capability/Capability.s: automation/capability/Capability.cpp.s
 
 # target to generate assembly for a file
 automation/capability/Capability.cpp.s:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/capability/Capability.cpp.s
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/capability/Capability.cpp.s
 .PHONY : automation/capability/Capability.cpp.s
 
 automation/constraint/Constraint.o: automation/constraint/Constraint.cpp.o
@@ -210,7 +237,7 @@ automation/constraint/Constraint.o: automation/constraint/Constraint.cpp.o
 
 # target to build an object file
 automation/constraint/Constraint.cpp.o:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/constraint/Constraint.cpp.o
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/constraint/Constraint.cpp.o
 .PHONY : automation/constraint/Constraint.cpp.o
 
 automation/constraint/Constraint.i: automation/constraint/Constraint.cpp.i
@@ -219,7 +246,7 @@ automation/constraint/Constraint.i: automation/constraint/Constraint.cpp.i
 
 # target to preprocess a source file
 automation/constraint/Constraint.cpp.i:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/constraint/Constraint.cpp.i
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/constraint/Constraint.cpp.i
 .PHONY : automation/constraint/Constraint.cpp.i
 
 automation/constraint/Constraint.s: automation/constraint/Constraint.cpp.s
@@ -228,7 +255,7 @@ automation/constraint/Constraint.s: automation/constraint/Constraint.cpp.s
 
 # target to generate assembly for a file
 automation/constraint/Constraint.cpp.s:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/constraint/Constraint.cpp.s
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/constraint/Constraint.cpp.s
 .PHONY : automation/constraint/Constraint.cpp.s
 
 automation/device/Device.o: automation/device/Device.cpp.o
@@ -237,7 +264,7 @@ automation/device/Device.o: automation/device/Device.cpp.o
 
 # target to build an object file
 automation/device/Device.cpp.o:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/device/Device.cpp.o
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/device/Device.cpp.o
 .PHONY : automation/device/Device.cpp.o
 
 automation/device/Device.i: automation/device/Device.cpp.i
@@ -246,7 +273,7 @@ automation/device/Device.i: automation/device/Device.cpp.i
 
 # target to preprocess a source file
 automation/device/Device.cpp.i:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/device/Device.cpp.i
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/device/Device.cpp.i
 .PHONY : automation/device/Device.cpp.i
 
 automation/device/Device.s: automation/device/Device.cpp.s
@@ -255,7 +282,7 @@ automation/device/Device.s: automation/device/Device.cpp.s
 
 # target to generate assembly for a file
 automation/device/Device.cpp.s:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/device/Device.cpp.s
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/device/Device.cpp.s
 .PHONY : automation/device/Device.cpp.s
 
 automation/sensor/Sensor.o: automation/sensor/Sensor.cpp.o
@@ -264,7 +291,7 @@ automation/sensor/Sensor.o: automation/sensor/Sensor.cpp.o
 
 # target to build an object file
 automation/sensor/Sensor.cpp.o:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/sensor/Sensor.cpp.o
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/sensor/Sensor.cpp.o
 .PHONY : automation/sensor/Sensor.cpp.o
 
 automation/sensor/Sensor.i: automation/sensor/Sensor.cpp.i
@@ -273,7 +300,7 @@ automation/sensor/Sensor.i: automation/sensor/Sensor.cpp.i
 
 # target to preprocess a source file
 automation/sensor/Sensor.cpp.i:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/sensor/Sensor.cpp.i
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/sensor/Sensor.cpp.i
 .PHONY : automation/sensor/Sensor.cpp.i
 
 automation/sensor/Sensor.s: automation/sensor/Sensor.cpp.s
@@ -282,35 +309,8 @@ automation/sensor/Sensor.s: automation/sensor/Sensor.cpp.s
 
 # target to generate assembly for a file
 automation/sensor/Sensor.cpp.s:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/automation/sensor/Sensor.cpp.s
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/automation/sensor/Sensor.cpp.s
 .PHONY : automation/sensor/Sensor.cpp.s
-
-ifttt/ifttt.o: ifttt/ifttt.cpp.o
-
-.PHONY : ifttt/ifttt.o
-
-# target to build an object file
-ifttt/ifttt.cpp.o:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/ifttt/ifttt.cpp.o
-.PHONY : ifttt/ifttt.cpp.o
-
-ifttt/ifttt.i: ifttt/ifttt.cpp.i
-
-.PHONY : ifttt/ifttt.i
-
-# target to preprocess a source file
-ifttt/ifttt.cpp.i:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/ifttt/ifttt.cpp.i
-.PHONY : ifttt/ifttt.cpp.i
-
-ifttt/ifttt.s: ifttt/ifttt.cpp.s
-
-.PHONY : ifttt/ifttt.s
-
-# target to generate assembly for a file
-ifttt/ifttt.cpp.s:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/ifttt/ifttt.cpp.s
-.PHONY : ifttt/ifttt.cpp.s
 
 main.o: main.cpp.o
 
@@ -318,7 +318,7 @@ main.o: main.cpp.o
 
 # target to build an object file
 main.cpp.o:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/main.cpp.o
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/main.cpp.o
 .PHONY : main.cpp.o
 
 main.i: main.cpp.i
@@ -327,7 +327,7 @@ main.i: main.cpp.i
 
 # target to preprocess a source file
 main.cpp.i:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/main.cpp.i
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/main.cpp.i
 .PHONY : main.cpp.i
 
 main.s: main.cpp.s
@@ -336,7 +336,7 @@ main.s: main.cpp.s
 
 # target to generate assembly for a file
 main.cpp.s:
-	$(MAKE) -f CMakeFiles/solar-ifttt.dir/build.make CMakeFiles/solar-ifttt.dir/main.cpp.s
+	$(MAKE) -f CMakeFiles/solar-device-controller.dir/build.make CMakeFiles/solar-device-controller.dir/main.cpp.s
 .PHONY : main.cpp.s
 
 # Help Target
@@ -347,13 +347,16 @@ help:
 	@echo "... depend"
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
-	@echo "... solar-ifttt"
+	@echo "... solar-device-controller"
+	@echo "... AutomationPlatformSpecific.o"
+	@echo "... AutomationPlatformSpecific.i"
+	@echo "... AutomationPlatformSpecific.s"
+	@echo "... DeviceControllerApp.o"
+	@echo "... DeviceControllerApp.i"
+	@echo "... DeviceControllerApp.s"
 	@echo "... HttpServer.o"
 	@echo "... HttpServer.i"
 	@echo "... HttpServer.s"
-	@echo "... IftttApp.o"
-	@echo "... IftttApp.i"
-	@echo "... IftttApp.s"
 	@echo "... automation/capability/Capability.o"
 	@echo "... automation/capability/Capability.i"
 	@echo "... automation/capability/Capability.s"
@@ -366,9 +369,6 @@ help:
 	@echo "... automation/sensor/Sensor.o"
 	@echo "... automation/sensor/Sensor.i"
 	@echo "... automation/sensor/Sensor.s"
-	@echo "... ifttt/ifttt.o"
-	@echo "... ifttt/ifttt.i"
-	@echo "... ifttt/ifttt.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"

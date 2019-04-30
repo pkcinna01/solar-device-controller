@@ -1,7 +1,6 @@
-#ifndef SOLAR_IFTTT_APP_H
-#define SOLAR_IFTTT_APP_H
+#ifndef XMONIT_DEVICE_CONTROLLER_H
+#define XMONIT_DEVICE_CONTROLLER_H
 
-#include "ifttt/PowerSwitch.h"
 #include "automation/Automation.h"
 #include "automation/constraint/ConstraintEventHandler.h"
 #include "automation/device/Device.h"
@@ -10,7 +9,6 @@
 
 using namespace std;
 using namespace automation;
-using namespace ifttt;
 using namespace Poco;
 
 // Summer window AC units use 515 (AC + Fan)
@@ -26,7 +24,7 @@ using namespace Poco;
 #define FULL_SOC_PERCENT 99.00
 
 
-class IftttApp : public Poco::Util::Application, ConstraintEventHandler {
+class DeviceControllerApp : public Poco::Util::Application, ConstraintEventHandler {
 
 
 public:
@@ -43,14 +41,14 @@ public:
     logBuffer << "DEFERRAL CANCELED(current=" << bCurrent << ",duration=" << lastDurationMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
   };
 
-  static IftttApp* pInstance;
+  static DeviceControllerApp* pInstance;
   static bool iSignalCaught;
   static void signalHandlerFn (int val);
 
   Devices devices;
   automation::Device* currentDevice = nullptr;
 
-  IftttApp(){
+  DeviceControllerApp(){
     pInstance = this;
   }
 

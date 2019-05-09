@@ -65,8 +65,9 @@ namespace xmonit {
           bError = true;
           automation::logBuffer << __PRETTY_FUNCTION__ << " ERROR" << endl;
         } else {
+          bError = false;
           bLastIsOnCheckResult = (itemState == "ON");
-          lastIsOnCachedResultTimeMs = 0; //automation::millisecs();
+          lastIsOnCachedResultTimeMs = automation::millisecs();
           //automation::logBuffer << __PRETTY_FUNCTION__ << " result:" << bLastIsOnCheckResult << endl;
         } 
       }
@@ -88,43 +89,59 @@ namespace xmonit {
         }
         automation::logBuffer << endl;
       } else {
+	      bError = false;
         automation::logBuffer << __PRETTY_FUNCTION__ << " bOn=" << bOn << endl;
         bLastIsOnCheckResult = bOn;
+        lastIsOnCachedResultTimeMs = automation::millisecs();
+        if ( pConstraint ) {
+          pConstraint->overrideTestResult(bOn);
+        }
       }
     }
 
     protected:
     mutable bool bLastIsOnCheckResult;
     mutable ulong lastIsOnCachedResultTimeMs;
+
+
     Poco::JSON::Object::Ptr processRequest(const string& httpMethod, const string& httpBody, const string contentType = "application/json") const {
-      HTTPRequest req(httpMethod, openHabItemUrl);
-      req.setContentType(contentType);
-      req.setContentLength(httpBody.length());
-
-      //automation::logBuffer << ">>>>> BEGIN OpenHab Request @ " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << " <<<<<" << endl;
-      stringstream ss;
-      req.write(ss);
-      string requestLine1;
-      getline(ss,requestLine1);
-      requestLine1.erase(remove(requestLine1.begin(), requestLine1.end(), '\r'), requestLine1.end());      
-      automation::logBuffer << requestLine1 << endl;
-
-      ostream &os = clientSession.sendRequest(req);
-      os << httpBody;
-
-      HTTPResponse resp;
+      string httpHeaderLine1;
       Poco::JSON::Object::Ptr resultPtr; 
-      istream &is = clientSession.receiveResponse(resp);
-      if ( contentType == "application/json" ) {
-        Poco::JSON::Parser parser;
-        Poco::Dynamic::Var result = parser.parse(is);
-        resultPtr = result.extract<Poco::JSON::Object::Ptr>();
-      } else {
-        Poco::JSON::Object::Ptr pJsonStatus( new Poco::JSON::Object);
-        Poco::Dynamic::Var status = (int) resp.getStatus();
-        pJsonStatus->set("status", status);
-        pJsonStatus->set("reason", resp.getReason());
-        resultPtr = pJsonStatus;
+      try{
+        HTTPRequest req(httpMethod, openHabItemUrl);
+        req.setContentType(contentType);
+        req.setContentLength(httpBody.length());
+
+        //automation::logBuffer << ">>>>> BEGIN OpenHab Request @ " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << " <<<<<" << endl;
+        stringstream ss;
+        req.write(ss);
+        getline(ss,httpHeaderLine1);
+        httpHeaderLine1 = Poco::replace(httpHeaderLine1,'\r');
+        //automation::logBuffer << requestLine1 << endl;
+
+        ostream &os = clientSession.sendRequest(req);
+        os << httpBody;
+
+        HTTPResponse resp;
+        istream &is = clientSession.receiveResponse(resp);
+        if ( contentType == "application/json" ) {
+          Poco::JSON::Parser parser;
+          Poco::Dynamic::Var result = parser.parse(is);
+          resultPtr = result.extract<Poco::JSON::Object::Ptr>();
+        } else {
+          resultPtr = new Poco::JSON::Object;
+          Poco::Dynamic::Var status = (int) resp.getStatus();
+          resultPtr->set("status", status);
+          resultPtr->set("reason", resp.getReason());
+        }
+      }
+      catch (Poco::Exception &ex)
+      {
+        cerr << __PRETTY_FUNCTION__ << " ERROR: Failed HTTP request: " <<  httpHeaderLine1 << endl;
+        cerr << ex.displayText() << endl;
+        resultPtr = new Poco::JSON::Object;
+        resultPtr->set("status", 500);
+        resultPtr->set("reason", ex.displayText() );
       }
       //resultPtr->stringify(automation::logBuffer);
       //automation::logBuffer << endl;
@@ -135,4 +152,4 @@ namespace xmonit {
 
   };
 }
-#endif //SOLAR_IFTTT_TOGGLE_H
+#endif //XMONIT_OPENHABPOWERSWITCH_H

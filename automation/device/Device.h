@@ -37,11 +37,19 @@ namespace automation {
 
     virtual Constraint* getConstraint() {
       return pConstraint;
-    }
+    }    
 
     virtual void setConstraint(Constraint* pConstraint) {
       this->pConstraint = pConstraint;
     }
+
+    bool isPassed() {
+      if (!pConstraint) {
+        return false;
+      } else {
+        return pConstraint->isPassed();
+      }
+    }    
     
     virtual void setup() = 0;
     

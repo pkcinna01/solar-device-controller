@@ -1,5 +1,5 @@
 #include "HttpServer.h"
-#include "DeviceControllerApp.h"
+#include "SolarPowerMgrApp.h"
 
 #include "Poco/Mutex.h"
 
@@ -54,11 +54,11 @@ void DefaultRequestHandler::handleRequest(HTTPServerRequest &req, HTTPServerResp
           Poco::Dynamic::Var var = pReqObj->get("deviceId");
           if ( !var.isEmpty() ) {
             int deviceId = var.convert<int>();
-            DeviceControllerApp::pInstance->devices.findById(deviceId, foundDevices);
+            SolarPowerMgrApp::pInstance->devices.findById(deviceId, foundDevices);
           } else {
             var = pReqObj->get("deviceName");
             if ( !var.isEmpty() ) {
-              DeviceControllerApp::pInstance->devices.findByTitleLike(var.toString().c_str(), foundDevices);
+              SolarPowerMgrApp::pInstance->devices.findByTitleLike(var.toString().c_str(), foundDevices);
             } 
           }
           if (foundDevices.empty())
@@ -87,6 +87,7 @@ void DefaultRequestHandler::handleRequest(HTTPServerRequest &req, HTTPServerResp
         }
         else if (cmd == "get")
         {
+          //ex: curl --header "Content-Type: application/json" --request POST --data '{"cmd":"get", "deviceName":"Plant*", "verbose":true}' http://localhost:8096
           json::StringStreamPrinter ssp;
           json::JsonStreamWriter w(ssp);
           bool bVerbose = !pReqObj->get("verbose").isEmpty() && automation::text::parseBool(pReqObj->get("verbose").toString().c_str());
@@ -94,14 +95,14 @@ void DefaultRequestHandler::handleRequest(HTTPServerRequest &req, HTTPServerResp
           Poco::Dynamic::Var devIdVar = pReqObj->get("deviceId");
           if ( !devIdVar.isEmpty() ) {
             int deviceId = devIdVar.convert<int>();
-            DeviceControllerApp::pInstance->devices.findById(deviceId, foundDevices);
+            SolarPowerMgrApp::pInstance->devices.findById(deviceId, foundDevices);
           } else {
             Poco::Dynamic::Var devNameVar = pReqObj->get("deviceName");
-            DeviceControllerApp::pInstance->devices.findByTitleLike(devNameVar.isEmpty() ? "*" : devNameVar.toString().c_str(), foundDevices);
+            SolarPowerMgrApp::pInstance->devices.findByTitleLike(devNameVar.isEmpty() ? "*" : devNameVar.toString().c_str(), foundDevices);
           }
           w.printVector(foundDevices,"", bVerbose);
           JSON::Parser parser;
-          Poco::Dynamic::Var devicesVar = parser.parse(ssp.ss);
+          Poco::Dynamic::Var devicesVar = parser.parse(ssp.ss); //TODO - Handle "nan" numbers
           respObj.set("devices", devicesVar);
         }
       }

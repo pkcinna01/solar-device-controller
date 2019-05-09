@@ -1,4 +1,4 @@
-#include "DeviceControllerApp.h"
+#include "SolarPowerMgrApp.h"
 
 #include "xmonit/OpenHabSwitch.h"
 #include "xmonit/GpioPowerSwitch.h"
@@ -26,13 +26,13 @@
 #include <prometheus/exposer.h>
 #include <prometheus/registry.h>
 
-DeviceControllerApp* DeviceControllerApp::pInstance(nullptr);
+SolarPowerMgrApp* SolarPowerMgrApp::pInstance(nullptr);
 
-bool DeviceControllerApp::iSignalCaught = 0;
+bool SolarPowerMgrApp::iSignalCaught = 0;
 
-void DeviceControllerApp::signalHandlerFn (int val) { iSignalCaught = val; }
+void SolarPowerMgrApp::signalHandlerFn (int val) { iSignalCaught = val; }
 
-int DeviceControllerApp::main(const std::vector<std::string> &args)
+int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 {
 
   using namespace prometheus;
@@ -42,17 +42,19 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
     loadConfiguration();
   }
   auto &conf = config();
-  std::string strIftttKey = conf.getString("ifttt[@key]");
+  //std::string strIftttKey = conf.getString("ifttt[@key]");
 
   ConstraintEventHandlerList::instance.push_back(this);
   cout << "START TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
-  cout << "ifttt key: '" << strIftttKey << "'" << endl;
-  if ( strIftttKey.empty() ) {
-    cerr << "Aborting.  Check configuration file for <ifttt key='...'/>" << endl;
-    return -1;
-  }
+  //cout << "ifttt key: '" << strIftttKey << "'" << endl;
+  //if ( strIftttKey.empty() ) {
+  //  cerr << "Aborting.  Check configuration file for <ifttt key='...'/>" << endl;
+  //  return -1;
+  //}
 
-  static auto metricFilter = [](const Prometheus::Metric &metric) { return metric.name.find("solar") == 0 || metric.name.find("arduino_solar") == 0; };
+  static auto metricFilter = [](const Prometheus::Metric &metric) { return metric.name.find("solar") == 0 
+                                                                    || metric.name.find("arduino_solar") == 0
+                                                                    /*|| metric.name.find("system_temperature_celcius") == 0*/; };
 
   URI url(conf.getString("prometheus[@solarMetricsUrl]", "http://solar:9202/actuator/prometheus"));
   static Prometheus::DataSource prometheusDs(url, metricFilter);
@@ -65,8 +67,18 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
   static SensorFn batteryBankVoltage("Battery Bank Voltage",
                                      []() -> float { return prometheusDs.metrics["solar_charger_outputVoltage"].avg(); });
   static SensorFn batteryBankPower("Battery Bank Power",
-                                   []() -> float { return prometheusDs.metrics["arduino_solar_batteryBankPower"].avg(); });
-
+                                  //TODO - adjust arduino current and voltage sensors for more accurate reading. for now just compensate to reduce it
+                                   []() -> float { return prometheusDs.metrics["arduino_solar_batteryBankPower"].avg() * 0.965;  });
+  //Control raspberry pi fan... just run the fan all the time for now since this requires extra transistor and no room.                                   
+  /*static SensorFn pi1Temp("jaxpi1 Temperature (F)",
+                          []() -> float { 
+                            float rtnTemp = prometheusDs.metrics["system_temperature_celcius"].avg(); // will only be one
+                            if ( !isnan(rtnTemp) ) {
+                              rtnTemp = rtnTemp * 1.8 + 32;
+                            }
+                            return rtnTemp;
+                          });
+  */                                 
   static SensorFn requiredPowerTotal("Required Power", []() -> float {
     float requiredWatts = 0;
     for (automation::Device *pDevice : pInstance->devices)
@@ -116,80 +128,70 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
     }
   };
 
-  static struct FamilyRoomMasterSwitch : xmonit::OpenHabSwitch
-  {
-
+  static struct HvacSwitch : xmonit::OpenHabSwitch
+  {    
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
-    AtLeast<float, Sensor &> cutoffVoltage{22, batteryBankVoltage};
+    AtLeast<float, Sensor &> cutoffVoltage{23.5, batteryBankVoltage};
     AtLeast<float, Sensor &> minSoc{MIN_SOC_PERCENT, soc};
     AtLeast<float, Sensor &> haveRequiredPower{requiredPowerTotal, chargersInputPower};
     AndConstraint enoughPower{{&minSoc, &haveRequiredPower}};
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
     OrConstraint fullSocOrEnoughPower{{&fullSoc, &enoughPower}};
-    TimeRangeConstraint timeRange{{9, 45, 0}, {17, 00, 00}};
-    SimultaneousConstraint simultaneousToggleOn{2 * MINUTES, &toggle};
+    TimeRangeConstraint timeRange;
+    SimultaneousConstraint simultaneousToggleOn{4 * MINUTES, &toggle};
     NotConstraint notSimultaneousToggleOn{&simultaneousToggleOn};
     TransitionDurationConstraint minOffDuration{4 * MINUTES, &toggle, 0, 1};
-    AndConstraint familyRmMasterConstraints{{&timeRange, &notSimultaneousToggleOn, &minVoltage, &cutoffVoltage, &fullSocOrEnoughPower, &minOffDuration}};
+    AndConstraint hvacConstraints{{&timeRange, &notSimultaneousToggleOn, &minVoltage, &cutoffVoltage, &fullSocOrEnoughPower, &minOffDuration}};
     PowerSwitchMetrics metrics;
 
-    FamilyRoomMasterSwitch() : xmonit::OpenHabSwitch("Family Room Master", "FamilyRoomMaster_Switch", DEFAULT_APPLIANCE_WATTS)
+    HvacSwitch(const string& title, const string& openHabItem, const TimeRangeConstraint::Time& start, const TimeRangeConstraint::Time& end) : 
+      xmonit::OpenHabSwitch(title, openHabItem, DEFAULT_APPLIANCE_WATTS), 
+      timeRange(start,end)
     {
-      fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(90 * SECONDS).setFailMargin(25);
-      minSoc.setPassDelayMs(2 * MINUTES).setFailDelayMs(120 * SECONDS).setFailMargin(20).setPassMargin(5);
-      haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(120 * SECONDS).setFailMargin(75).setPassMargin(100);
-      minVoltage.setFailDelayMs(30 * SECONDS).setFailMargin(0.5);
-      pConstraint = &familyRmMasterConstraints;
-      metrics.init(this);
-    }
-
-  } familyRoomMasterSwitch;
-
-  static struct SunroomMasterSwitch : xmonit::OpenHabSwitch
-  {
-
-    AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
-    AtLeast<float, Sensor &> minSoc{MIN_SOC_PERCENT, soc};
-    AtLeast<float, Sensor &> cutoffVoltage{22.75, batteryBankVoltage};
-    AtLeast<float, Sensor &> haveRequiredPower{requiredPowerTotal, chargersInputPower};
-    AndConstraint enoughPower{{&minSoc, &haveRequiredPower}};
-    AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
-    OrConstraint fullSocOrEnoughPower{{&fullSoc, &enoughPower}};
-    TimeRangeConstraint timeRange{{8, 30, 0}, {17, 15, 00}};
-    SimultaneousConstraint simultaneousToggleOn{2 * MINUTES, &toggle};
-    NotConstraint notSimultaneousToggleOn{&simultaneousToggleOn};
-    TransitionDurationConstraint minOffDuration{4 * MINUTES, &toggle, 0, 1};
-    AndConstraint sunroomMasterConstraints{{&timeRange, &notSimultaneousToggleOn, &minVoltage, &cutoffVoltage, &fullSocOrEnoughPower, &minOffDuration}};
-    PowerSwitchMetrics metrics;
-
-    SunroomMasterSwitch() : xmonit::OpenHabSwitch("Sunroom Master", "SunroomMaster_Switch", DEFAULT_APPLIANCE_WATTS)
-    {
-      fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(120 * SECONDS).setFailMargin(25);
-      minSoc.setPassDelayMs(2.25 * MINUTES).setFailDelayMs(45 * SECONDS).setFailMargin(20).setPassMargin(10);
-      haveRequiredPower.setPassDelayMs(2.25 * MINUTES).setFailDelayMs(45 * SECONDS).setFailMargin(75).setPassMargin(100);
+      fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(3 * MINUTES).setFailMargin(25);
+      minSoc.setPassDelayMs(2 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(20).setPassMargin(5);
+      haveRequiredPower.setPassDelayMs(1.0 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(75).setPassMargin(75);
       minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
-      pConstraint = &sunroomMasterConstraints;
+      pConstraint = &hvacConstraints;
       metrics.init(this);
     }
-  } sunroomMasterSwitch;
+
+  } familyRoomHvac1Switch("Family Room HVAC 1", "FamilyRoomHvac1_Switch", {10, 00, 0}, {17, 00, 00}),
+    familyRoomHvac2Switch("Family Room HVAC 2", "FamilyRoomHvac2_Switch", {12, 0, 0}, {15, 30, 00}),
+    sunroomHvacSwitch("Sunroom HVAC", "SunroomMaster_Switch", {9, 30, 0}, {18, 00, 00});
+  
+  familyRoomHvac2Switch.minVoltage.setFailDelayMs(45 * SECONDS);
+  familyRoomHvac2Switch.cutoffVoltage.setFixedThreshold(23.75);
+  familyRoomHvac2Switch.haveRequiredPower.setFailDelayMs(1.5 * MINUTES);
+  sunroomHvacSwitch.minVoltage.setFailDelayMs(1.5 * MINUTES);
+  sunroomHvacSwitch.cutoffVoltage.setFixedThreshold(23.25);
+  sunroomHvacSwitch.haveRequiredPower.setFailDelayMs(2.5 * MINUTES);
+
+
+  static ToggleStateConstraint sunroomHvacOff{&sunroomHvacSwitch.toggle,false}; 
+  static ToggleStateConstraint familyRoomHvac1Off{&familyRoomHvac1Switch.toggle,false}; 
+  static ToggleStateConstraint familyRoomHvac2Off{&familyRoomHvac2Switch.toggle,false}; 
+  static OrConstraint oneOrMoreHvacsOff{{&familyRoomHvac1Off,&familyRoomHvac2Off,&sunroomHvacOff}};
 
   static struct FamilyRoomAuxSwitch : xmonit::OpenHabSwitch
   {
 
-    AtLeast<float, Sensor &> minSoc{MIN_SOC_PERCENT, soc};
+    AtLeast<float, Sensor &> minSoc{MIN_SOC_PERCENT+0.2, soc};
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
     AtLeast<float, Sensor &> haveRequiredPower{requiredPowerTotal, chargersInputPower};
     AndConstraint enoughPower{{&minSoc, &haveRequiredPower}};
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
     OrConstraint fullSocOrEnoughPower{{&fullSoc, &enoughPower}};
-    TimeRangeConstraint timeRange1{{8, 0, 0}, {12, 0, 0}};
-    TimeRangeConstraint timeRange2{{12, 0, 0}, {17, 00, 0}};
-    OrConstraint validTimes{{&timeRange1, &timeRange2}};
-    SimultaneousConstraint simultaneousToggleOn{2 * MINUTES, &toggle};
+    TimeRangeConstraint timeRange1{{8, 0, 0}, {16, 00, 0}};
+    TimeRangeConstraint timeRange2{{18, 00, 0}, {19, 00, 0}};
+    OrConstraint validTime{{&timeRange1,&timeRange2}};
+    SimultaneousConstraint simultaneousToggleOn{1 * MINUTES, &toggle};
     NotConstraint notSimultaneousToggleOn{&simultaneousToggleOn};
-    TransitionDurationConstraint minOffDuration{4 * MINUTES, &toggle, 0, 1};
-    AndConstraint familyRmAuxConstraints{{&validTimes, /*&allMastersMustBeOn,*/
-                                          &notSimultaneousToggleOn, &minVoltage, &fullSocOrEnoughPower, &minOffDuration}};
+    TransitionDurationConstraint minOffDuration{2 * MINUTES, &toggle, 0, 1};
+
+    AndConstraint familyRmAuxConstraints{{&validTime, &oneOrMoreHvacsOff, &notSimultaneousToggleOn, 
+      &minVoltage, &fullSocOrEnoughPower, &minOffDuration}};
+
     PowerSwitchMetrics metrics;
 
     FamilyRoomAuxSwitch() : xmonit::OpenHabSwitch("Family Room Plant Lights", "FamilyRoomPlantLights_Switch", LIGHTS_SET_1_WATTS)
@@ -207,19 +209,19 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
   {
 
     AtLeast<float, Sensor &> minSoc{MIN_SOC_PERCENT, soc};
-    AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
+    AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS+0.2, batteryBankVoltage};
     AtLeast<float, Sensor &> haveRequiredPower{requiredPowerTotal, chargersInputPower};
     AndConstraint enoughPower{{&minSoc, &haveRequiredPower}};
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
     OrConstraint fullSocOrEnoughPower{{&fullSoc, &enoughPower}};
-    TimeRangeConstraint timeRange1{{8, 0, 0}, {12, 0, 0}};
-    TimeRangeConstraint timeRange2{{12, 0, 0}, {18, 00, 0}};
-    OrConstraint validTimes{{&timeRange1, &timeRange2}};
-    SimultaneousConstraint simultaneousToggleOn{2 * MINUTES, &toggle};
+    TimeRangeConstraint timeRange1{{8, 0, 0}, {16, 00, 0}};
+    TimeRangeConstraint timeRange2{{18, 00, 0}, {19, 00, 0}};
+    OrConstraint validTime{{&timeRange1,&timeRange2}};
+    SimultaneousConstraint simultaneousToggleOn{1 * MINUTES, &toggle};
     NotConstraint notSimultaneousToggleOn{&simultaneousToggleOn};
-    TransitionDurationConstraint minOffDuration{4 * MINUTES, &toggle, 0, 1};
-    AndConstraint plantLightsConstraints{{&validTimes, /*&allMastersMustBeOn,*/
-                                          &notSimultaneousToggleOn, &minVoltage, &fullSocOrEnoughPower, &minOffDuration}};
+    TransitionDurationConstraint minOffDuration{2 * MINUTES, &toggle, 0, 1};
+    AndConstraint plantLightsConstraints{{&validTime, &notSimultaneousToggleOn, &minVoltage, 
+                                          &fullSocOrEnoughPower, &minOffDuration, &oneOrMoreHvacsOff}};
     PowerSwitchMetrics metrics;
 
     Outlet1Switch() : xmonit::GpioPowerSwitch("Plant Lights", 15 /*GPIO PIN*/, LIGHTS_SET_2_WATTS)
@@ -233,10 +235,26 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
     }
   } outlet1Switch;
 
+  /*static struct RaspberryPi1Fan : xmonit::GpioPowerSwitch
+  {
+
+    AtLeast<float, Sensor &> fanOnThreashold{144, pi1Temp};
+    PowerSwitchMetrics metrics;
+
+    RaspberryPi1Fan() : xmonit::GpioPowerSwitch("jaxpi1 Fan", 14)
+    {
+      fanOnThreashold.setPassDelayMs( 30*SECONDS ).setFailDelayMs( 2*MINUTES ).setFailMargin(4);
+      pConstraint = &fanOnThreashold;
+      metrics.init(this);
+    }
+  } pi1Fan;*/
+
   devices.push_back( &outlet1Switch );
   devices.push_back( &familyRoomAuxSwitch );
-  devices.push_back( &sunroomMasterSwitch );
-  devices.push_back( &familyRoomMasterSwitch );
+  devices.push_back( &sunroomHvacSwitch );
+  devices.push_back( &familyRoomHvac1Switch );
+  devices.push_back( &familyRoomHvac2Switch );
+  //devices.push_back( &pi1Fan );
 
   json::JsonSerialWriter w;
   string strLogBuffer;
@@ -256,18 +274,19 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
   cout << "============== End Device(s) Setup ============" << endl
        << endl;
 
-  //w.printlnVectorObj("devices",devices,"",true);
+  w.printlnVectorObj("devices",devices,"",true);
   //w.printlnVectorObj("constraints",Constraint::all(),"",true);
 
-  SimultaneousConstraint::connectListeners({&familyRoomMasterSwitch.simultaneousToggleOn, &familyRoomAuxSwitch.simultaneousToggleOn,
-                                            &sunroomMasterSwitch.simultaneousToggleOn, &outlet1Switch.simultaneousToggleOn});
+
+  SimultaneousConstraint::connectListeners({&familyRoomHvac1Switch.simultaneousToggleOn, &familyRoomHvac2Switch.simultaneousToggleOn,
+    &familyRoomAuxSwitch.simultaneousToggleOn, &sunroomHvacSwitch.simultaneousToggleOn, &outlet1Switch.simultaneousToggleOn});
 
   unsigned long nowMs = automation::millisecs();
-  unsigned long syncTimeMs = nowMs;
+  //unsigned long syncTimeMs = nowMs;
 
   bool bFirstTime = true;
 
-  TimeRangeConstraint solarTimeRange({0, 0, 0}, {18, 30, 0});
+  TimeRangeConstraint solarTimeRange({0, 0, 0}, {19, 45, 0});
 
   struct sigaction action;
   action.sa_handler = signalHandlerFn;
@@ -300,6 +319,8 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
       continue;
     }
     int iDeviceErrorCnt = 0;
+    
+    vector<Device*> turnedOffSwitches;
 
     for (automation::Device *pDevice : devices)
     {
@@ -311,7 +332,11 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
 
         automation::clearLogBuffer();
         bool bIgnoreSameState = !bFirstTime;
+        bool bIsOn = pDevice->isPassed();
         pDevice->applyConstraint(bIgnoreSameState);
+        if ( bIsOn && !pDevice->isPassed() ) {
+          turnedOffSwitches.push_back(pDevice);
+        }
         if (pDevice->bError)
         {
           iDeviceErrorCnt++;
@@ -327,7 +352,7 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
           } 
           cout << ", TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
           cout << "SENSORS: [";
-          for (auto s : {soc, chargersInputPower, chargersOutputPower, requiredPowerTotal, batteryBankVoltage})
+          for (auto s : {soc, chargersInputPower, /*chargersOutputPower,*/ requiredPowerTotal, batteryBankVoltage})
           {
             cout << '"' << s.getTitle() << "\"=" << s.getValue() << ",";
           }
@@ -345,8 +370,15 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
     }
     currentDevice = nullptr;
 
+    for (automation::Device *pDevice : turnedOffSwitches) {
+      // put at end of list so other devices get higher priority (rotates air conditioners better)
+      auto it = std::find(devices.begin(),devices.end(),pDevice);
+      std::rotate(it, it + 1, devices.end());
+    }
+
+
     unsigned long nowMs = automation::millisecs();
-    unsigned long elapsedSyncDurationMs = nowMs - syncTimeMs;
+    /*unsigned long elapsedSyncDurationMs = nowMs - syncTimeMs;
     if (elapsedSyncDurationMs > 30 * MINUTES)
     {
       cout << ">>>>>>>>>>>>>>>>>>>>> Synchronizing current state (sending to IFTTTT) <<<<<<<<<<<<<<<<<<<<<<" << endl;
@@ -372,7 +404,8 @@ int DeviceControllerApp::main(const std::vector<std::string> &args)
       automation::bSynchronizing = false;
       syncTimeMs = nowMs;
     }
-    else if (bFirstTime)
+    else */
+    if (bFirstTime)
     {
       bFirstTime = false;
     }

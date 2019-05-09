@@ -1,7 +1,7 @@
 
 
 cmake_minimum_required(VERSION 3.9)
-project(solar-device-controller)
+project(solar-power-mgr)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_BUILD_TYPE Debug)
@@ -13,9 +13,9 @@ set(CMAKE_BUILD_TYPE Debug)
 #message(${SSL_LIB})
 #message(${CRYPTO_LIB})
 
-add_executable(solar-device-controller main.cpp 
+add_executable(solar-power-mgr main.cpp 
         AutomationPlatformSpecific.cpp
-        DeviceControllerApp.cpp
+        SolarPowerMgrApp.cpp
         automation/sensor/Sensor.cpp 
         automation/device/Device.cpp
         automation/capability/Capability.cpp
@@ -51,5 +51,5 @@ set(PROMETHEUS_LIBS "${PROMETHEUS_DEPLOY_DIR}/lib/libprometheus-cpp-core.so"
         "${PROMETHEUS_DEPLOY_DIR}/lib/libprometheus-cpp-pull.so"
 )
 
-target_include_directories(solar-device-controller PRIVATE "${POCO_INCLUDE_DIR}" "${PROMETHEUS_INCLUDE_DIR}")
-target_link_libraries(solar-device-controller "${POCO_LIBS}" "${PROMETHEUS_LIBS}" "${SSL_LIB}" "${CRYPTO_LIB}" -ldl  Threads::Threads)
+target_include_directories(solar-power-mgr PRIVATE "${POCO_INCLUDE_DIR}" "${PROMETHEUS_INCLUDE_DIR}")
+target_link_libraries(solar-power-mgr "${POCO_LIBS}" "${PROMETHEUS_LIBS}" "${SSL_LIB}" "${CRYPTO_LIB}" -ldl  Threads::Threads)

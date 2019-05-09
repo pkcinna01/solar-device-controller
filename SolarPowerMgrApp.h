@@ -1,5 +1,5 @@
-#ifndef XMONIT_DEVICE_CONTROLLER_H
-#define XMONIT_DEVICE_CONTROLLER_H
+#ifndef SOLAR_POWER_MGR_APP_H
+#define SOLAR_POWER_MGR_APP_H
 
 #include "automation/Automation.h"
 #include "automation/constraint/ConstraintEventHandler.h"
@@ -11,20 +11,18 @@ using namespace std;
 using namespace automation;
 using namespace Poco;
 
-// Summer window AC units use 515 (AC + Fan)
-// Winter heaters use 575 watts
-#define DEFAULT_APPLIANCE_WATTS 515
+#define DEFAULT_APPLIANCE_WATTS 475 // space heater or air conditioner
 
 #define DEFAULT_MIN_VOLTS 24.65
 
-#define LIGHTS_SET_1_WATTS 170
+#define LIGHTS_SET_1_WATTS 120
 #define LIGHTS_SET_2_WATTS 100
 
 #define MIN_SOC_PERCENT 48.25
-#define FULL_SOC_PERCENT 99.00
+#define FULL_SOC_PERCENT 98.00
 
 
-class DeviceControllerApp : public Poco::Util::Application, ConstraintEventHandler {
+class SolarPowerMgrApp : public Poco::Util::Application, ConstraintEventHandler {
 
 
 public:
@@ -41,14 +39,14 @@ public:
     logBuffer << "DEFERRAL CANCELED(current=" << bCurrent << ",duration=" << lastDurationMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
   };
 
-  static DeviceControllerApp* pInstance;
+  static SolarPowerMgrApp* pInstance;
   static bool iSignalCaught;
   static void signalHandlerFn (int val);
 
   Devices devices;
   automation::Device* currentDevice = nullptr;
 
-  DeviceControllerApp(){
+  SolarPowerMgrApp(){
     pInstance = this;
   }
 

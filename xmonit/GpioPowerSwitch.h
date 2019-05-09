@@ -52,6 +52,9 @@ namespace xmonit {
       int rtn = exec(cmdStream.str(),response);
       automation::logBuffer << __PRETTY_FUNCTION__ << " cmd='" << cmdStream.str() << "' rtn=" << rtn << endl;
       bError = rtn != 0;
+      if ( !bError && pConstraint ) {
+        pConstraint->overrideTestResult(bOn);
+      }
     }
 
     protected:

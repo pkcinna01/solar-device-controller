@@ -1,6 +1,6 @@
 
 
-#include "DeviceControllerApp.h"
+#include "SolarPowerMgrApp.h"
 
 
-POCO_APP_MAIN(DeviceControllerApp);
+POCO_APP_MAIN(SolarPowerMgrApp);

@@ -141,6 +141,12 @@ public:
           {
             metricsMap[strKey].push_back(metric);
           }
+        } 
+        else 
+        {
+          if ( strVal != "nan" ) {
+            std::cerr << "Failed parsing Prometheus guage '" << strKey << "': " << strVal << endl;
+          }
         }
       }
       else if (!line.empty() && line[0] != '#')

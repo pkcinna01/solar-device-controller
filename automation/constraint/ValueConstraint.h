@@ -172,17 +172,20 @@ namespace automation {
       }
     }
 
+    void setFixedThreshold(ValueT threshold) {
+        if (bDeleteThreshold) {
+          delete pThreshold;
+        } 
+        bDeleteThreshold = true;
+        pThreshold = new ConstantValueHolder<ValueT>(threshold);
+    }
+
     SetCode setAttribute(const char* pszKey, const char* pszVal, ostream* pRespStream = nullptr) override {
       SetCode rtn = ValueConstraint<ValueT,ValueSourceT>::setAttribute(pszKey,pszVal,pRespStream);
       string strResultValue;
       if ( rtn == SetCode::Ignored ) {
         if ( !strcasecmp_P(pszKey,PSTR("THRESHOLD")) ) {
-          ValueT val = atof(pszVal);
-          if (bDeleteThreshold) {
-            delete pThreshold;
-          } 
-          bDeleteThreshold = true;
-          pThreshold = new ConstantValueHolder<ValueT>(val);
+          setFixedThreshold(atof(pszVal));
           strResultValue = text::asString(pThreshold->getValue());
           rtn = SetCode::OK;
         }

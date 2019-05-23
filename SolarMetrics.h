@@ -10,6 +10,7 @@
 #include <Poco/RegularExpression.h>
 #include <Poco/NumberParser.h>
 #include <Poco/Exception.h>
+#include <Poco/String.h>
 
 #include <string>
 #include <map>
@@ -126,27 +127,27 @@ public:
         string strVal(captures[4]);
         //cout << ">>>" << strKey << "{" << strAttributes << "} " << strVal << endl;
         double value = 0;
-        if (NumberParser::tryParseFloat(strVal, value))
+        if (!NumberParser::tryParseFloat(strVal, value) )        
         {
-          RegularExpression::MatchVec matches;
-          Prometheus::Metric metric;
-          metric.name = strKey;
-          metric.value = value;
-          while (Prometheus::METRIC_ATTRIBS_RE.split(strAttributes, captures))
-          {
-            strAttributes = strAttributes.substr(captures[0].length());
-            metric.attributes[captures[1]] = captures[2];
-          }
-          if (metricFilter(metric))
-          {
-            metricsMap[strKey].push_back(metric);
-          }
-        } 
-        else 
-        {
-          if ( strVal != "nan" ) {
+          if ( Poco::toLower(strVal) == "nan" ) {
+            value = NAN;
+          } else {
             std::cerr << "Failed parsing Prometheus guage '" << strKey << "': " << strVal << endl;
+            return false;
           }
+        }
+        RegularExpression::MatchVec matches;
+        Prometheus::Metric metric;
+        metric.name = strKey;
+        metric.value = value;
+        while (Prometheus::METRIC_ATTRIBS_RE.split(strAttributes, captures))
+        {
+          strAttributes = strAttributes.substr(captures[0].length());
+          metric.attributes[captures[1]] = captures[2];
+        }
+        if (metricFilter(metric))
+        {
+          metricsMap[strKey].push_back(metric);
         }
       }
       else if (!line.empty() && line[0] != '#')

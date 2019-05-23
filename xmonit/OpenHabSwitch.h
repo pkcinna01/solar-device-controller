@@ -27,8 +27,6 @@ using namespace Poco;
 #include <string>
 #include <array>
 
-// simple Raspberry PI pin on/off implementation 
-// For external relays or powerstrips that just need a power signal
 namespace xmonit {
 
 
@@ -52,8 +50,25 @@ namespace xmonit {
      }
 
     void setup() override {
+      if ( pConstraint ) {
+        // This should let incoming commands (see HttpServer.cpp) temporarily turn things on/off
+        // Things turned on/off in openhab do not use the HttpServer to toggle on/off so this only 
+        // matters for clients connecting through HttpServer.cpp (java SolarWebService)
+        pConstraint->pRemoteExpiredOp = std::make_unique<Constraint::RemoteExpiredDelayOp>(2*MINUTES);
+        pConstraint->mode = (automation::Constraint::REMOTE_MODE|automation::Constraint::TEST_MODE);
+      }
     }
 
+    SetCode setAttribute(const char* pszKey, const char* pszVal, ostream* pRespStream = nullptr) override {
+      SetCode resultCode = automation::PowerSwitch::setAttribute(pszKey, pszVal, pRespStream);
+      if ( resultCode == SetCode::OK ) {
+        string strKey = pszKey;
+        if ( pConstraint && Poco::toLower(strKey) == "on" ) {
+          pConstraint->pRemoteExpiredOp->reset();
+        }
+      }
+      return resultCode;
+    }
 
     bool isOn() const override {
       ulong nowMs = automation::millisecs();

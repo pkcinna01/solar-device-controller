@@ -38,6 +38,7 @@ public:
   }
 
   virtual void handleRequest(HTTPServerRequest &req, HTTPServerResponse &resp);
+  virtual void handleJsonRequest(HTTPServerRequest &req, HTTPServerResponse &resp);
 };
 
 class RequestHandlerFactory : public HTTPRequestHandlerFactory

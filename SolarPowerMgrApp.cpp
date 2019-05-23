@@ -51,6 +51,10 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   //  cerr << "Aborting.  Check configuration file for <ifttt key='...'/>" << endl;
   //  return -1;
   //}
+  static float maxInputPower = (float) conf.getDouble("maxInputPower",1700); // load is kept below available input power or this configured max
+  static float maxOutputPower = (float) conf.getDouble("maxOutputPower",2200); // load is kept below available input power or this configured max
+                                                                             // workaround for defective thermal fuse tripping too soon
+  cout << "app.xml: maxInputPower=" << maxInputPower << endl;
 
   static auto metricFilter = [](const Prometheus::Metric &metric) { return metric.name.find("solar") == 0 
                                                                     || metric.name.find("arduino_solar") == 0
@@ -60,10 +64,8 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   static Prometheus::DataSource prometheusDs(url, metricFilter);
 
   static SensorFn soc("State of Charge", []() -> float { return prometheusDs.metrics["solar_charger_batterySOC"].avg(); });
-  static SensorFn chargersOutputPower("Chargers Output Power",
-                                      []() -> float { return prometheusDs.metrics["solar_charger_outputPower"].total(); });
   static SensorFn chargersInputPower("Chargers Input Power",
-                                     []() -> float { return prometheusDs.metrics["solar_charger_inputPower"].total(); });
+                                     []() -> float { return std::min(prometheusDs.metrics["solar_charger_inputPower"].total(),maxInputPower); });
   static SensorFn batteryBankVoltage("Battery Bank Voltage",
                                      []() -> float { return prometheusDs.metrics["solar_charger_outputVoltage"].avg(); });
   static SensorFn batteryBankPower("Battery Bank Power",
@@ -131,17 +133,16 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   static struct HvacSwitch : xmonit::OpenHabSwitch
   {    
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
-    AtLeast<float, Sensor &> cutoffVoltage{23.5, batteryBankVoltage};
-    AtLeast<float, Sensor &> minSoc{MIN_SOC_PERCENT, soc};
+    AtLeast<float, Sensor &> cutoffVoltage{23.75, batteryBankVoltage};
+    AtMost<float, Sensor&> cutoffPower{maxOutputPower,batteryBankPower};
     AtLeast<float, Sensor &> haveRequiredPower{requiredPowerTotal, chargersInputPower};
-    AndConstraint enoughPower{{&minSoc, &haveRequiredPower}};
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
-    OrConstraint fullSocOrEnoughPower{{&fullSoc, &enoughPower}};
+    OrConstraint fullSocOrEnoughPower{{&fullSoc, &haveRequiredPower}};
     TimeRangeConstraint timeRange;
     SimultaneousConstraint simultaneousToggleOn{4 * MINUTES, &toggle};
     NotConstraint notSimultaneousToggleOn{&simultaneousToggleOn};
     TransitionDurationConstraint minOffDuration{4 * MINUTES, &toggle, 0, 1};
-    AndConstraint hvacConstraints{{&timeRange, &notSimultaneousToggleOn, &minVoltage, &cutoffVoltage, &fullSocOrEnoughPower, &minOffDuration}};
+    AndConstraint hvacConstraints{{&timeRange, &notSimultaneousToggleOn, &minVoltage, &cutoffVoltage, &fullSocOrEnoughPower, &minOffDuration, &cutoffPower}};
     PowerSwitchMetrics metrics;
 
     HvacSwitch(const string& title, const string& openHabItem, const TimeRangeConstraint::Time& start, const TimeRangeConstraint::Time& end) : 
@@ -149,15 +150,14 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       timeRange(start,end)
     {
       fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(3 * MINUTES).setFailMargin(25);
-      minSoc.setPassDelayMs(2 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(20).setPassMargin(5);
-      haveRequiredPower.setPassDelayMs(1.0 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(75).setPassMargin(75);
+      haveRequiredPower.setPassDelayMs(30 * SECONDS).setFailDelayMs(1 * MINUTES).setFailMargin(80).setPassMargin(25);
       minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
       pConstraint = &hvacConstraints;
       metrics.init(this);
     }
 
   } familyRoomHvac1Switch("Family Room HVAC 1", "FamilyRoomHvac1_Switch", {10, 00, 0}, {17, 00, 00}),
-    familyRoomHvac2Switch("Family Room HVAC 2", "FamilyRoomHvac2_Switch", {12, 0, 0}, {15, 30, 00}),
+    familyRoomHvac2Switch("Family Room HVAC 2", "FamilyRoomHvac2_Switch", {11, 30, 0}, {15, 30, 00}),
     sunroomHvacSwitch("Sunroom HVAC", "SunroomMaster_Switch", {9, 30, 0}, {18, 00, 00});
   
   familyRoomHvac2Switch.minVoltage.setFailDelayMs(45 * SECONDS);
@@ -165,6 +165,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   familyRoomHvac2Switch.haveRequiredPower.setFailDelayMs(1.5 * MINUTES);
   sunroomHvacSwitch.minVoltage.setFailDelayMs(1.5 * MINUTES);
   sunroomHvacSwitch.cutoffVoltage.setFixedThreshold(23.25);
+  sunroomHvacSwitch.cutoffPower.setFailDelayMs(30*SECONDS);
   sunroomHvacSwitch.haveRequiredPower.setFailDelayMs(2.5 * MINUTES);
 
 
@@ -176,12 +177,10 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   static struct FamilyRoomAuxSwitch : xmonit::OpenHabSwitch
   {
 
-    AtLeast<float, Sensor &> minSoc{MIN_SOC_PERCENT+0.2, soc};
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
     AtLeast<float, Sensor &> haveRequiredPower{requiredPowerTotal, chargersInputPower};
-    AndConstraint enoughPower{{&minSoc, &haveRequiredPower}};
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
-    OrConstraint fullSocOrEnoughPower{{&fullSoc, &enoughPower}};
+    OrConstraint fullSocOrEnoughPower{{&fullSoc, &haveRequiredPower}};
     TimeRangeConstraint timeRange1{{8, 0, 0}, {16, 00, 0}};
     TimeRangeConstraint timeRange2{{18, 00, 0}, {19, 00, 0}};
     OrConstraint validTime{{&timeRange1,&timeRange2}};
@@ -197,7 +196,6 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     FamilyRoomAuxSwitch() : xmonit::OpenHabSwitch("Family Room Plant Lights", "FamilyRoomPlantLights_Switch", LIGHTS_SET_1_WATTS)
     {
       fullSoc.setPassDelayMs(0.75 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(15);
-      minSoc.setPassDelayMs(2 * MINUTES).setFailDelayMs(45 * SECONDS).setFailMargin(25);
       haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(5 * MINUTES).setFailMargin(50).setPassMargin(10);
       minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
       pConstraint = &familyRmAuxConstraints;
@@ -208,12 +206,10 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   static struct Outlet1Switch : xmonit::GpioPowerSwitch
   {
 
-    AtLeast<float, Sensor &> minSoc{MIN_SOC_PERCENT, soc};
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS+0.2, batteryBankVoltage};
     AtLeast<float, Sensor &> haveRequiredPower{requiredPowerTotal, chargersInputPower};
-    AndConstraint enoughPower{{&minSoc, &haveRequiredPower}};
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
-    OrConstraint fullSocOrEnoughPower{{&fullSoc, &enoughPower}};
+    OrConstraint fullSocOrEnoughPower{{&fullSoc, &haveRequiredPower}};
     TimeRangeConstraint timeRange1{{8, 0, 0}, {16, 00, 0}};
     TimeRangeConstraint timeRange2{{18, 00, 0}, {19, 00, 0}};
     OrConstraint validTime{{&timeRange1,&timeRange2}};
@@ -227,7 +223,6 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     Outlet1Switch() : xmonit::GpioPowerSwitch("Plant Lights", 15 /*GPIO PIN*/, LIGHTS_SET_2_WATTS)
     {
       fullSoc.setPassDelayMs(0.5 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(15);
-      minSoc.setPassDelayMs(2 * MINUTES).setFailDelayMs(45 * SECONDS).setFailMargin(25);
       haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(5 * MINUTES).setFailMargin(50).setPassMargin(10);
       minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
       pConstraint = &plantLightsConstraints;
@@ -308,8 +303,8 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
   while ( iSignalCaught == 0)
   {
-    if ( !solarTimeRange.test() ) {
-      automation::sleep(10 * 1000);
+    if ( !solarTimeRange.test() || !bEnabled ) {
+      automation::sleep(5 * 1000);
       automation::logBufferToString(strLogBuffer);
       if (!strLogBuffer.empty())
       {
@@ -322,13 +317,15 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     
     vector<Device*> turnedOffSwitches;
 
+    prometheusDs.loadMetrics();
+
     for (automation::Device *pDevice : devices)
     {
 
       if (httpServer.mutex.tryLock(10000))
       {
         currentDevice = pDevice;
-        prometheusDs.loadMetrics();
+        //prometheusDs.loadMetrics();
 
         automation::clearLogBuffer();
         bool bIgnoreSameState = !bFirstTime;
@@ -352,7 +349,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
           } 
           cout << ", TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
           cout << "SENSORS: [";
-          for (auto s : {soc, chargersInputPower, /*chargersOutputPower,*/ requiredPowerTotal, batteryBankVoltage})
+          for (auto s : {soc, chargersInputPower, requiredPowerTotal, batteryBankVoltage})
           {
             cout << '"' << s.getTitle() << "\"=" << s.getValue() << ",";
           }
@@ -411,7 +408,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     }
 
     // wait 60 seconds if any request fails (occasional DNS failure or network connectivity)
-    automation::sleep(iDeviceErrorCnt ? 60 * 1000 : 1000);
+    automation::sleep(iDeviceErrorCnt ? 60 * 1000 : 1500);
   };
 
   cout << "====================================================" << endl;

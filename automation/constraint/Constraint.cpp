@@ -12,7 +12,7 @@ namespace automation {
     Mode resolvedMode = mode;
     if ( mode != TEST_MODE ) {
       if (mode&REMOTE_MODE) {
-        if ( automation::client::watchdog::isKeepAliveExpired() ) {
+        if ( pRemoteExpiredOp->test() ) {
           // remote connection lost so process locally
           resolvedMode = mode-REMOTE_MODE;
           if ( resolvedMode == INVALID_MODE ) {
@@ -23,7 +23,7 @@ namespace automation {
           return bPassed;
         }
       }
-      if ( resolvedMode == PASS_MODE || resolvedMode == INVALID_MODE ) {
+      if ( resolvedMode == PASS_MODE || resolvedMode == FAIL_MODE || resolvedMode == INVALID_MODE ) {
         return overrideTestResult( resolvedMode == PASS_MODE );
       }
     }
@@ -127,6 +127,17 @@ namespace automation {
       } else if ( !strcasecmp_P(pszKey,PSTR("failMargin")) ) {
         setFailMargin(atof(pszVal));
         strResultValue = text::asString(getFailMargin());
+        rtn = SetCode::OK;
+      } else if ( !strcasecmp_P(pszKey,PSTR("remoteExpiredDelayMinutes")) ) {
+        if ( !strcasecmp_P(pszVal,PSTR("auto")) ) {
+          pRemoteExpiredOp = std::make_unique<Constraint::RemoteExpiredOp>();
+          strResultValue = "auto (client watchdog)";
+        } else {
+          float delayMs = atof(pszVal)*MINUTES;
+          pRemoteExpiredOp = std::make_unique<Constraint::RemoteExpiredDelayOp>(delayMs);
+          strResultValue = text::asString(delayMs);
+          strResultValue += " (millisecs)";
+        }
         rtn = SetCode::OK;
       }
       if (pRespStream && rtn == SetCode::OK ) {

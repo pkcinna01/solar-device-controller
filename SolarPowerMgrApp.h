@@ -11,14 +11,14 @@ using namespace std;
 using namespace automation;
 using namespace Poco;
 
-#define DEFAULT_APPLIANCE_WATTS 475 // space heater or air conditioner
+#define DEFAULT_APPLIANCE_WATTS 465 // air conditioner
+//#define DEFAULT_APPLIANCE_WATTS 520 // heater
 
-#define DEFAULT_MIN_VOLTS 24.65
+#define DEFAULT_MIN_VOLTS 24.70
 
 #define LIGHTS_SET_1_WATTS 120
 #define LIGHTS_SET_2_WATTS 100
 
-#define MIN_SOC_PERCENT 48.25
 #define FULL_SOC_PERCENT 98.00
 
 
@@ -27,7 +27,7 @@ class SolarPowerMgrApp : public Poco::Util::Application, ConstraintEventHandler 
 
 public:
   void resultDeferred(Constraint* pConstraint,bool bNext,unsigned long delayMs) const override {
-    logBuffer << "DEFERRED(next=" << bNext << ",delay=" << delayMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
+    //logBuffer << "DEFERRED(next=" << bNext << ",delay=" << delayMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
   };
   void resultChanged(Constraint* pConstraint,bool bNew,unsigned long lastDurationMs) const override {
     logBuffer << "CHANGED(new=" << bNew << ",lastDuration=" << lastDurationMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
@@ -36,7 +36,7 @@ public:
   //  logBuffer << "SAME(value=" << bVal << ",duration=" << lastDurationMs << "ms): " << pConstraint->getTitle() << endl;
   //};
   void deferralCancelled(Constraint* pConstraint,bool bCurrent,unsigned long lastDurationMs) const override {
-    logBuffer << "DEFERRAL CANCELED(current=" << bCurrent << ",duration=" << lastDurationMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
+    //logBuffer << "DEFERRAL CANCELED(current=" << bCurrent << ",duration=" << lastDurationMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
   };
 
   static SolarPowerMgrApp* pInstance;
@@ -46,7 +46,9 @@ public:
   Devices devices;
   automation::Device* currentDevice = nullptr;
 
-  SolarPowerMgrApp(){
+  bool bEnabled;
+
+  SolarPowerMgrApp() : bEnabled(true) {
     pInstance = this;
   }
 

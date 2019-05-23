@@ -23,9 +23,17 @@ namespace xmonit {
 
     int gpioPin;
 
-    GpioPowerSwitch(const string &id, int gpioPin, float requiredWatts = 0) : automation::PowerSwitch(id,requiredWatts), gpioPin(gpioPin) {}
+    GpioPowerSwitch(const string &id, int gpioPin, float requiredWatts = 0) : 
+      automation::PowerSwitch(id,requiredWatts),
+      gpioPin(gpioPin) {
+    }
 
     void setup() override {
+      if ( pConstraint ) {
+        // This should let openhab temporarily turn things on/off (client::watchdog default expiration is 2 minutes)
+        pConstraint->pRemoteExpiredOp = std::make_unique<Constraint::RemoteExpiredDelayOp>(2*MINUTES);
+        pConstraint->mode = (automation::Constraint::REMOTE_MODE|automation::Constraint::TEST_MODE);
+      }
       std::stringstream cmdStream;
       cmdStream << "gpio mode " << gpioPin << " out";
       std::string response;
@@ -33,6 +41,18 @@ namespace xmonit {
       automation::logBuffer << __PRETTY_FUNCTION__ << " cmd='" << cmdStream.str() << "' rtn=" << rtn << endl;
       bError = rtn != 0;
     }
+
+    SetCode setAttribute(const char* pszKey, const char* pszVal, ostream* pRespStream = nullptr) override {
+      SetCode resultCode = automation::PowerSwitch::setAttribute(pszKey, pszVal, pRespStream);
+      if ( resultCode == SetCode::OK ) {
+        string strKey = pszKey;
+        if ( pConstraint && Poco::toLower(strKey) == "on" ) {
+          pConstraint->pRemoteExpiredOp->reset();
+        }
+      }
+      return resultCode;
+    }
+
 
     bool isOn() const override {
       std::stringstream cmdStream;

@@ -215,7 +215,7 @@ namespace automation {
     }
 
     AtMost(ValueT threshold, ValueSourceT &valueSource)
-        : AtMost<ValueT,ValueSourceT>(new ConstantValueHolder<ValueT>(threshold),valueSource) {
+        : ThresholdValueConstraint<ValueT,ValueSourceT>(new ConstantValueHolder<ValueT>(threshold),valueSource) {
     }
 
     bool checkValue(const ValueT &value) override {

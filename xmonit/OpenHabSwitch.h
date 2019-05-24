@@ -37,7 +37,7 @@ namespace xmonit {
     string itemName;
     mutable  HTTPClientSession clientSession;
     string openHabItemUrl;
-
+    
     OpenHabSwitch(const string &title, const string &itemName, float requiredWatts = 0) : 
       automation::PowerSwitch(title,requiredWatts), 
       itemName(itemName),
@@ -54,7 +54,7 @@ namespace xmonit {
         // This should let incoming commands (see HttpServer.cpp) temporarily turn things on/off
         // Things turned on/off in openhab do not use the HttpServer to toggle on/off so this only 
         // matters for clients connecting through HttpServer.cpp (java SolarWebService)
-        pConstraint->pRemoteExpiredOp = std::make_unique<Constraint::RemoteExpiredDelayOp>(2*MINUTES);
+        pConstraint->setRemoteExpiredOp(new Constraint::RemoteExpiredDelayOp(2*MINUTES));
         pConstraint->mode = (automation::Constraint::REMOTE_MODE|automation::Constraint::TEST_MODE);
       }
     }

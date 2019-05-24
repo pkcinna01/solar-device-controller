@@ -37,7 +37,7 @@ namespace automation {
 
     virtual Constraint* getConstraint() {
       return pConstraint;
-    }    
+    }
 
     virtual void setConstraint(Constraint* pConstraint) {
       this->pConstraint = pConstraint;

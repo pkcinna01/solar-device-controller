@@ -9,7 +9,6 @@
 #include <iostream>
 #include <string.h>
 #include <set>
-#include <memory>
 
 using namespace std;
 
@@ -82,6 +81,9 @@ namespace automation {
 
     virtual ~Constraint() {
       all().erase(this);
+      if ( pRemoteExpiredOp != &defaultRemoteExpiredOp ) {
+        delete pRemoteExpiredOp;
+      }
     }
 
     virtual bool checkValue() = 0;
@@ -99,6 +101,8 @@ namespace automation {
       virtual void reset(){} // place to track when a remote event occured
     };
 
+    static RemoteExpiredOp defaultRemoteExpiredOp;
+
     struct RemoteExpiredDelayOp : public RemoteExpiredOp {
       unsigned long delayMs;
       unsigned long attributeSetTimeMs; // each constraints remote status will expire individualy after a delay
@@ -114,7 +118,14 @@ namespace automation {
       }
     };
     
-    unique_ptr<RemoteExpiredOp> pRemoteExpiredOp{ std::make_unique<RemoteExpiredOp>() };
+    RemoteExpiredOp* pRemoteExpiredOp {&defaultRemoteExpiredOp};
+    
+    void setRemoteExpiredOp(RemoteExpiredOp* pOp) {
+      if ( pRemoteExpiredOp && pRemoteExpiredOp != &defaultRemoteExpiredOp ) {
+        delete pRemoteExpiredOp;  // workaround for arduinostl not having unique_ptr
+      }
+      pRemoteExpiredOp = pOp;
+    }
 
     SetCode setAttribute(const char* pszKey, const char* pszVal, ostream* pRespStream = nullptr) override;
 

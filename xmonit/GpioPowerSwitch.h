@@ -31,7 +31,7 @@ namespace xmonit {
     void setup() override {
       if ( pConstraint ) {
         // This should let openhab temporarily turn things on/off (client::watchdog default expiration is 2 minutes)
-        pConstraint->pRemoteExpiredOp = std::make_unique<Constraint::RemoteExpiredDelayOp>(2*MINUTES);
+        pConstraint->setRemoteExpiredOp(new Constraint::RemoteExpiredDelayOp(2*MINUTES));
         pConstraint->mode = (automation::Constraint::REMOTE_MODE|automation::Constraint::TEST_MODE);
       }
       std::stringstream cmdStream;

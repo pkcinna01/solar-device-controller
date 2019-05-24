@@ -10,6 +10,14 @@ using namespace std;
 
 namespace automation {
 
+  
+  template<typename ValueT> 
+  struct ValueValidator {
+    virtual bool isValid(const ValueT &val) const { return true; }
+    virtual bool getPassOnInvalid() const { return false; }
+  };
+  
+
   template<typename ValueT, typename ValueSourceT>
   class ValueConstraint : public Constraint {
 
@@ -17,10 +25,15 @@ namespace automation {
     ValueConstraint(ValueSourceT& valueSource) : valueSource(valueSource) {
     }
 
+    ValueValidator<ValueT>* pValueValidator{ nullptr };
+
     bool checkValue() override {
       const ValueT &value = getValue();
-      bool bCheckPassed = checkValue(value);
-      return bCheckPassed;
+      if ( pValueValidator && !pValueValidator->isValid(value) ) {
+        return pValueValidator->getPassOnInvalid();
+      } else {
+        return checkValue(value);
+      }
     }
 
     virtual ValueT getValue() {

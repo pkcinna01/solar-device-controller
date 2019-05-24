@@ -130,11 +130,11 @@ namespace automation {
         rtn = SetCode::OK;
       } else if ( !strcasecmp_P(pszKey,PSTR("remoteExpiredDelayMinutes")) ) {
         if ( !strcasecmp_P(pszVal,PSTR("auto")) ) {
-          pRemoteExpiredOp = std::make_unique<Constraint::RemoteExpiredOp>();
+          setRemoteExpiredOp(&defaultRemoteExpiredOp);
           strResultValue = "auto (client watchdog)";
         } else {
           float delayMs = atof(pszVal)*MINUTES;
-          pRemoteExpiredOp = std::make_unique<Constraint::RemoteExpiredDelayOp>(delayMs);
+          setRemoteExpiredOp(new Constraint::RemoteExpiredDelayOp(delayMs));
           strResultValue = text::asString(delayMs);
           strResultValue += " (millisecs)";
         }
@@ -178,6 +178,7 @@ namespace automation {
     w.print("}");
   }
 
+  Constraint::RemoteExpiredOp Constraint::defaultRemoteExpiredOp;
   ConstraintEventHandlerList ConstraintEventHandlerList::instance;
 
 }

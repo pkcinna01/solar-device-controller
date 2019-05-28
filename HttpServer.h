@@ -38,7 +38,11 @@ public:
   }
 
   virtual void handleRequest(HTTPServerRequest &req, HTTPServerResponse &resp);
-  virtual void handleJsonRequest(HTTPServerRequest &req, HTTPServerResponse &resp);
+
+protected:
+  void writeJsonResp(ostream& out, int statusCode, const string& statusMsg, Poco::JSON::Object& obj);
+  void writeJsonResp(ostream& out, int statusCode, const char* statusMsg, Poco::JSON::Object& obj) { writeJsonResp(out,statusCode,string(statusMsg),obj); }
+  void writeJsonResp(ostream& out, int statusCode, const string& statusMsg);
 };
 
 class RequestHandlerFactory : public HTTPRequestHandlerFactory

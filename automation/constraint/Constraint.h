@@ -4,6 +4,7 @@
 #include "../Automation.h"
 #include "../json/JsonStreamWriter.h"
 #include "../AttributeContainer.h"
+#include "ConstraintEventHandler.h"
 
 #include <string>
 #include <iostream>
@@ -67,6 +68,8 @@ namespace automation {
     }    
 
     Mode mode = TEST_MODE;
+
+    bool bEnabled = true;
     
     Constraint() {
       assignId(this);
@@ -175,6 +178,8 @@ namespace automation {
     bool isRemoteCompatible() {
       return (mode&REMOTE_MODE) > 0;
     }
+
+    ConstraintEventHandlerList listeners;
 
     protected:
 

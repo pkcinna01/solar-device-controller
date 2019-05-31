@@ -152,7 +152,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(3 * MINUTES).setFailMargin(25);
       haveRequiredPower.setPassDelayMs(30 * SECONDS).setFailDelayMs(1 * MINUTES).setFailMargin(80).setPassMargin(25);
       minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
-      pConstraint = &hvacConstraints;
+      setConstraint(&hvacConstraints);
       metrics.init(this);
     }
 
@@ -198,7 +198,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       fullSoc.setPassDelayMs(0.75 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(15);
       haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(5 * MINUTES).setFailMargin(50).setPassMargin(10);
       minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
-      pConstraint = &familyRmAuxConstraints;
+      setConstraint(&familyRmAuxConstraints);
       metrics.init(this);
     }
   } familyRoomAuxSwitch;
@@ -225,7 +225,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       fullSoc.setPassDelayMs(0.5 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(15);
       haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(5 * MINUTES).setFailMargin(50).setPassMargin(10);
       minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
-      pConstraint = &plantLightsConstraints;
+      setConstraint(&plantLightsConstraints);
       metrics.init(this);
     }
   } outlet1Switch;
@@ -239,7 +239,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     RaspberryPi1Fan() : xmonit::GpioPowerSwitch("jaxpi1 Fan", 14)
     {
       fanOnThreashold.setPassDelayMs( 30*SECONDS ).setFailDelayMs( 2*MINUTES ).setFailMargin(4);
-      pConstraint = &fanOnThreashold;
+      setConstraint(&fanOnThreashold);
       metrics.init(this);
     }
   } pi1Fan;*/
@@ -316,53 +316,48 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     int iDeviceErrorCnt = 0;
     
     vector<Device*> turnedOffSwitches;
-
-    prometheusDs.loadMetrics();
+    
+    {
+      Poco::Mutex::ScopedLock lock(httpServer.mutex); // device print from httpserver thread will access sensors when it prints constraints
+      prometheusDs.loadMetrics(); 
+    }
 
     for (automation::Device *pDevice : devices)
     {
+      Poco::Mutex::ScopedLock lock(httpServer.mutex);
 
-      if (httpServer.mutex.tryLock(10000))
-      {
-        currentDevice = pDevice;
-        //prometheusDs.loadMetrics();
+      currentDevice = pDevice;
 
-        automation::clearLogBuffer();
-        bool bIgnoreSameState = !bFirstTime;
-        bool bIsOn = pDevice->isPassed();
-        pDevice->applyConstraint(bIgnoreSameState);
-        if ( bIsOn && !pDevice->isPassed() ) {
-          turnedOffSwitches.push_back(pDevice);
-        }
-        if (pDevice->bError)
-        {
-          iDeviceErrorCnt++;
-        }
-        automation::logBufferToString(strLogBuffer);
-        if (!strLogBuffer.empty() )
-        {
-          cout << "=================================================================================" << endl;
-          cout << "DEVICE: " << pDevice->name;
-          automation::PowerSwitch *pPowerSwitch = dynamic_cast<automation::PowerSwitch*>(pDevice);
-          if ( pPowerSwitch ) {
-            cout << ", ON: " << pPowerSwitch->isOn();
-          } 
-          cout << ", TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
-          cout << "SENSORS: [";
-          for (auto s : {soc, chargersInputPower, requiredPowerTotal, batteryBankVoltage})
-          {
-            cout << '"' << s.getTitle() << "\"=" << s.getValue() << ",";
-          }
-          cout << "]" << std::endl
-               << strLogBuffer << std::flush;
-          //pPowerSwitch->printVerbose();
-          //cout << endl;
-        }
-        httpServer.mutex.unlock();
+      automation::clearLogBuffer();
+      bool bIgnoreSameState = !bFirstTime;
+      bool bIsOn = pDevice->isPassed();
+      pDevice->applyConstraint(bIgnoreSameState);
+      if ( bIsOn && !pDevice->isPassed() ) {
+        turnedOffSwitches.push_back(pDevice);
       }
-      else
+      if (pDevice->bError)
       {
-        cerr << "ERROR: Failed getting mutex from HttpServer.  Skipping processing of " << pDevice->name << endl;
+        iDeviceErrorCnt++;
+      }
+      automation::logBufferToString(strLogBuffer);
+      if (!strLogBuffer.empty() )
+      {
+        cout << "=================================================================================" << endl;
+        cout << "DEVICE: " << pDevice->name;
+        automation::PowerSwitch *pPowerSwitch = dynamic_cast<automation::PowerSwitch*>(pDevice);
+        if ( pPowerSwitch ) {
+          cout << ", ON: " << pPowerSwitch->isOn();
+        } 
+        cout << ", TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
+        cout << "SENSORS: [";
+        for (auto s : {soc, chargersInputPower, requiredPowerTotal, batteryBankVoltage})
+        {
+          cout << '"' << s.getTitle() << "\"=" << s.getValue() << ",";
+        }
+        cout << "]" << std::endl
+              << strLogBuffer << std::flush;
+        //pPowerSwitch->printVerbose();
+        //cout << endl;
       }
     }
     currentDevice = nullptr;

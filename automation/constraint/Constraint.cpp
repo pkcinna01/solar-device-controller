@@ -9,6 +9,9 @@ namespace automation {
 
   bool Constraint::test()
   {
+    if ( !bEnabled ) {
+      return bPassed;
+    }
     Mode resolvedMode = mode;
     if ( mode != TEST_MODE ) {
       if (mode&REMOTE_MODE) {
@@ -75,15 +78,21 @@ namespace automation {
     if ( bPassed != this->bPassed ) {
       deferredResultCnt = 0;
       this->bPassed = bPassed;
-      ConstraintEventHandlerList::instance.resultChanged(this,bPassed,automation::millisecs()-changeTimeMs);
+      unsigned long durationMs = automation::millisecs()-changeTimeMs;
+      ConstraintEventHandlerList::instance.resultChanged(this,bPassed,durationMs);
+      listeners.resultChanged(this,bPassed,durationMs);
       changeTimeMs = automation::millisecs();
     } else if ( deferredResultCnt ) {
       deferredResultCnt = 0;
       unsigned long lastDeferredTimeMs = deferredTimeMs;
       deferredTimeMs = millisecs();
-      ConstraintEventHandlerList::instance.deferralCancelled(this,bPassed,automation::millisecs()-lastDeferredTimeMs);
+      unsigned long durationMs = deferredTimeMs-lastDeferredTimeMs;
+      ConstraintEventHandlerList::instance.deferralCancelled(this,bPassed,durationMs);
+      listeners.deferralCancelled(this,bPassed,durationMs);
     } else {
-      ConstraintEventHandlerList::instance.resultSame(this,bPassed,automation::millisecs()-deferredTimeMs);
+      unsigned long durationMs = automation::millisecs()-deferredTimeMs;
+      ConstraintEventHandlerList::instance.resultSame(this,bPassed,durationMs);
+      listeners.resultSame(this,bPassed,durationMs);
     }
   }
 
@@ -97,7 +106,11 @@ namespace automation {
         if ( newMode != INVALID_MODE ) {
           mode = newMode;
           strResultValue = Constraint::modeToString(mode);
-          test();
+          if ( mode & (FAIL_MODE|PASS_MODE) ) {
+            overrideTestResult(mode&PASS_MODE); // do not wait for transition delays
+          } else {
+            test();
+          }          
           rtn = SetCode::OK;
         } else {
           if (pRespStream) {
@@ -108,6 +121,10 @@ namespace automation {
           }
           rtn = SetCode::Error;
         }
+      } else if ( !strcasecmp_P(pszKey,PSTR("ENABLED")) ) {
+        bEnabled = text::parseBool(pszVal);
+        strResultValue = text::boolAsString(bEnabled);
+        rtn = SetCode::OK;
       } else if ( !strcasecmp_P(pszKey,PSTR("PASSED")) ) {
         overrideTestResult(text::parseBool(pszVal));
         strResultValue = text::boolAsString(isPassed());
@@ -156,6 +173,7 @@ namespace automation {
     w.printlnStringObj(F("title"), getTitle(), ",");
     w.printlnNumberObj(F("id"), (unsigned long) id, ",");
     w.printlnBoolObj(F("passed"), isPassed(), ",");
+    w.printlnBoolObj(F("enabled"), bEnabled, ",");
     if ( bVerbose ) {
       if ( !children.empty() ) {
         w.printlnVectorObj(F("children"), children, ",");

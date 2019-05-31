@@ -50,6 +50,7 @@ namespace xmonit {
      }
 
     void setup() override {
+      Constraint* pConstraint = getConstraint();
       if ( pConstraint ) {
         // This should let incoming commands (see HttpServer.cpp) temporarily turn things on/off
         // Things turned on/off in openhab do not use the HttpServer to toggle on/off so this only 
@@ -63,6 +64,7 @@ namespace xmonit {
       SetCode resultCode = automation::PowerSwitch::setAttribute(pszKey, pszVal, pRespStream);
       if ( resultCode == SetCode::OK ) {
         string strKey = pszKey;
+        Constraint* pConstraint = getConstraint();
         if ( pConstraint && Poco::toLower(strKey) == "on" ) {
           pConstraint->pRemoteExpiredOp->reset();
         }
@@ -108,6 +110,7 @@ namespace xmonit {
         automation::logBuffer << __PRETTY_FUNCTION__ << " bOn=" << bOn << endl;
         bLastIsOnCheckResult = bOn;
         lastIsOnCachedResultTimeMs = automation::millisecs();
+        Constraint* pConstraint = getConstraint();
         if ( pConstraint ) {
           pConstraint->overrideTestResult(bOn);
         }

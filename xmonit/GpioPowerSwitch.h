@@ -29,6 +29,7 @@ namespace xmonit {
     }
 
     void setup() override {
+      Constraint* pConstraint = getConstraint();
       if ( pConstraint ) {
         // This should let openhab temporarily turn things on/off (client::watchdog default expiration is 2 minutes)
         pConstraint->setRemoteExpiredOp(new Constraint::RemoteExpiredDelayOp(2*MINUTES));
@@ -46,6 +47,7 @@ namespace xmonit {
       SetCode resultCode = automation::PowerSwitch::setAttribute(pszKey, pszVal, pRespStream);
       if ( resultCode == SetCode::OK ) {
         string strKey = pszKey;
+        Constraint* pConstraint = getConstraint();
         if ( pConstraint && Poco::toLower(strKey) == "on" ) {
           pConstraint->pRemoteExpiredOp->reset();
         }
@@ -72,6 +74,7 @@ namespace xmonit {
       int rtn = exec(cmdStream.str(),response);
       automation::logBuffer << __PRETTY_FUNCTION__ << " cmd='" << cmdStream.str() << "' rtn=" << rtn << endl;
       bError = rtn != 0;
+      Constraint* pConstraint = getConstraint();
       if ( !bError && pConstraint ) {
         pConstraint->overrideTestResult(bOn);
       }

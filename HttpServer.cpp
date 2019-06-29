@@ -42,6 +42,8 @@ namespace xmonit
 
     bool bVerbose = false;
     vector<string> fields;
+    string nameParam;
+
     for( std::pair<string,string> param : queryParams ) {
       if ( Poco::toLower(param.first) == "verbose" ) {
         bVerbose = param.second.empty() || automation::text::parseBool(param.second.c_str());
@@ -50,6 +52,8 @@ namespace xmonit
         for( string token : pathTokenizer ) {
           fields.push_back(token);
         }
+      } else if ( Poco::toLower(param.first) == "name" ) {
+        nameParam = param.second;
       }
     }
 
@@ -65,6 +69,10 @@ namespace xmonit
         Poco::JSON::Parser parser;
         Poco::Dynamic::Var result = parser.parse(req.stream());
         pReqObj = result.extract<Poco::JSON::Object::Ptr>();
+      } else if ( vecPath.size() == 1 && !nameParam.empty() ) {
+        // a GET request with "name" parameter (wildcard search by title)
+        pReqObj = new Poco::JSON::Object();
+        pReqObj->set("name",nameParam);
       }
 
       Poco::Net::IPAddress clientAddress(req.clientAddress().host());
@@ -84,33 +92,46 @@ namespace xmonit
           writeJsonResp( out, -8, strMsg );
           respStatus = HTTPResponse::HTTP_BAD_REQUEST;
 
-        } else if ( vecPath[0] == "device") {
-          Devices foundDevices;
+        } else if ( vecPath[0] == "device" || vecPath[0] == "constraint" || vecPath[0] == "sensor" || vecPath[0] == "capability" ) {
+          string itemType = vecPath[0];
+          AttributeContainerVector<AttributeContainer*> foundVec;
+          AttributeContainerVector<AttributeContainer*> srcVec;
+          if ( itemType == "device" ) {
+            srcVec.insert(srcVec.begin(), SolarPowerMgrApp::pInstance->devices.begin(), SolarPowerMgrApp::pInstance->devices.end());
+          } else if ( itemType == "constraint" ) {
+            srcVec.insert(srcVec.begin(), Constraint::all().begin(), Constraint::all().end());
+          } else if ( itemType == "capability" ) {
+            srcVec.insert(srcVec.begin(), Capability::all().begin(), Capability::all().end());
+          } else if ( itemType == "sensor" ) {
+            srcVec.insert(srcVec.begin(), SolarPowerMgrApp::pInstance->sensors.begin(), SolarPowerMgrApp::pInstance->sensors.end());
+          } else {
+            throw Poco::Exception("Unsupported rest item type");
+          }
 
           if ( vecPath.size() == 2 ) {
 
             string strId = vecPath[1];
             int id = NumberParser::parse(strId);
-            SolarPowerMgrApp::pInstance->devices.findById(id,foundDevices);
+            srcVec.findById(id,foundVec);
 
           } else {
 
-            Poco::DynamicAny deviceVar;
+            Poco::DynamicAny itemVar;
             if ( pReqObj ) {
-              deviceVar = pReqObj->get("deviceName");
+              itemVar = pReqObj->get("name");
             }
-            if ( !deviceVar.isEmpty() ) {
-              SolarPowerMgrApp::pInstance->devices.findByTitleLike(deviceVar.toString().c_str(), foundDevices);              
+            if ( !itemVar.isEmpty() ) {
+              srcVec.findByTitleLike(itemVar.toString().c_str(), foundVec);              
             } else if ( strMethod == "get" ) {
-              SolarPowerMgrApp::pInstance->devices.findByTitleLike("*", foundDevices);              
+              srcVec.findByTitleLike("*", foundVec);              
             }
           }
           //cerr << __PRETTY_FUNCTION__ << "[" << std::this_thread::get_id() << "] device cnt: " << foundDevices.size() << endl; 
 
-          if ( foundDevices.empty() ) {
+          if ( foundVec.empty() ) {
 
             respStatus = HTTPResponse::HTTP_NOT_FOUND;
-            string respMsg("No devices found. URI: ");
+            string respMsg("No items matched query. URI: ");
             respMsg += req.getURI();
             writeJsonResp(out, -1, respMsg);
             cerr << __PRETTY_FUNCTION__ << respMsg << endl;
@@ -120,19 +141,22 @@ namespace xmonit
             int respCode = 0;
             string respMsg;
             Poco::JSON::Object respObj(true);
-            Poco::JSON::Array deviceArr;
+            Poco::JSON::Array itemArr;
 
-            if ( bTextPlainResp && fields.empty() ) {
+            if ( bTextPlainResp && fields.empty() && itemType == "device" ) {
               fields.push_back("on");
             }
 
-            for ( int i = 0; i < foundDevices.size(); i++ ) {
+            for ( int i = 0; i < foundVec.size(); i++ ) {
 
-              automation::PowerSwitch* pSwitch = dynamic_cast<automation::PowerSwitch*>(foundDevices[i]);
-
-              if ( pSwitch ) {
-                // first see if its a simple query so we can skip expensive JSON parsing and query
-                if ( bTextPlainResp && fields.size() == 1 && SINGLE_FIELD_QUERY_RE.match(fields[0])) {
+              AttributeContainer* pItem = foundVec[i];
+              //if ( pSwitch ) {
+              {
+                // first see if its a simple query from openhab so we can skip expensive JSON parsing and query
+                automation::PowerSwitch* pSwitch = nullptr;
+                if ( bTextPlainResp && fields.size() == 1 
+                     && SINGLE_FIELD_QUERY_RE.match(fields[0]) 
+                     && (pSwitch=dynamic_cast<automation::PowerSwitch*>(pItem)) ) {
                   //TODO - enhance if needed... currently openhab makes lots of calls for "on" and "enabled"
                   const string& field = fields[0];
                   //cout << "field: " << field << endl;
@@ -146,13 +170,14 @@ namespace xmonit
                     cerr << __PRETTY_FUNCTION__ << " Device GET request expected text field in (on|enabled) but found: '" << field << "'" << endl;
                   }
                 } else {
-                  // This will access device constraints which are also used in several places in main thread
+                  // This may access device constraints or sensors which are also used in several places in main thread
                   json::StringStreamPrinter ssp;
                   json::JsonStreamWriter w(ssp);
-                  pSwitch->print(w,bVerbose||!fields.empty(),false);
+                  pItem->print(w,bVerbose||!fields.empty(),false);
                   JSON::Parser parser;
-                  Poco::Dynamic::Var deviceVar = parser.parse(ssp.ss); //TODO - Handle "nan" numbers
-                  Poco::JSON::Object::Ptr pJson = deviceVar.extract<Poco::JSON::Object::Ptr>();
+                  try {
+                  Poco::Dynamic::Var itemVar = parser.parse(ssp.ss); //TODO - Handle "nan" numbers
+                  Poco::JSON::Object::Ptr pJson = itemVar.extract<Poco::JSON::Object::Ptr>();
                   if ( bTextPlainResp ) {
                     if ( i > 0 ) {
                       out << endl;
@@ -170,23 +195,32 @@ namespace xmonit
                     }
                   } else {
                     if ( fields.empty() ) {
-                      deviceArr.add(pJson);
+                      itemArr.add(pJson);
                     } else {
                       Poco::JSON::Object jObj;
                       fields.push_back("id");
-                      fields.push_back("name");
+                      if ( itemType == "constraint" ) {
+                        fields.push_back("title");
+                      } else {
+                        fields.push_back("name");
+                      }
                       for ( string field : fields) {
                         jObj.set(field,Poco::JSON::Query(pJson).find(field));
                       }
-                      deviceArr.add(jObj);
+                      itemArr.add(jObj);
                     }
+                  }
+                  } catch (const Poco::Exception &ex) {
+                    cerr << __PRETTY_FUNCTION__ << "Failed extrating JSON data from: " << endl;
+                    cerr << ssp.ss.str() << endl;
+                    ex.rethrow();
                   }
                 }
               }
             }
 
             if ( !bTextPlainResp ) {
-              respObj.set("devices",deviceArr);
+              respObj.set(itemType,itemArr);
               writeJsonResp(out, respCode, respMsg, respObj);
             }
 
@@ -195,48 +229,50 @@ namespace xmonit
             int respCode = 0;
             string respMsg;
             Poco::JSON::Object respObj(true);
-            Poco::JSON::Array deviceArr;
+            Poco::JSON::Array itemArr;
 
             string strKey = pReqObj->get("key");
             string strVal = pReqObj->get("value");
 
-            for ( int i = 0; i < foundDevices.size(); i++ ) {
-              automation::PowerSwitch* pSwitch = dynamic_cast<automation::PowerSwitch*>(foundDevices[i]);
-              if ( pSwitch ) {
-                cout << "Setting device '" << pSwitch->name << "' " << strKey << "=" << strVal << endl;
+            for ( int i = 0; i < foundVec.size(); i++ ) {
+              AttributeContainer* pItem = foundVec[i];
+              //automation::PowerSwitch* pSwitch = dynamic_cast<automation::PowerSwitch*>(foundVec[i]);
+              //if ( pSwitch ) {
+              {
+                cout << "Setting " << itemType << " '" << pItem->getTitle() << "' " << strKey << "=" << strVal << endl;
                 stringstream ss;
-                automation::SetCode statusCode = pSwitch->setAttribute(strKey.c_str(), strVal.c_str(), &ss);
+                automation::SetCode statusCode = pItem->setAttribute(strKey.c_str(), strVal.c_str(), &ss);
                 if ( !respMsg.empty() ) {
                   respMsg += " | ";
                 }
                 respMsg += ss.str();
-                if ( respCode == 0 ) { // don't set respCode back to zero if an error already occurred for prior device
+                if ( respCode == 0 ) { // don't set respCode back to zero if an error already occurred for prior item
                   respCode = (int)statusCode; 
                 }
                 json::StringStreamPrinter ssp;
                 json::JsonStreamWriter w(ssp);
-                pSwitch->print(w,true);
+                pItem->print(w,true);
                 JSON::Parser parser;
-                Poco::Dynamic::Var deviceVar = parser.parse(ssp.ss); //TODO - Handle "nan" numbers
-                Poco::JSON::Object::Ptr deviceJson = deviceVar.extract<Poco::JSON::Object::Ptr>();
+                Poco::Dynamic::Var itemVar = parser.parse(ssp.ss); //TODO - Handle "nan" numbers
+                Poco::JSON::Object::Ptr itemJson = itemVar.extract<Poco::JSON::Object::Ptr>();
                 Poco::DynamicStruct rtnJson;
-                rtnJson.insert("id",pSwitch->id);
-                rtnJson.insert("name",pSwitch->name);
+                rtnJson.insert("id",pItem->id);
+                rtnJson.insert("name",pItem->getTitle());
                 rtnJson.insert("key",strKey);
-                rtnJson.insert("value",Poco::JSON::Query(deviceJson).find(strKey));
+                rtnJson.insert("value",Poco::JSON::Query(itemJson).find(strKey));
                 rtnJson.insert("statusCode",(int)statusCode);
-                deviceArr.add(rtnJson);
+                itemArr.add(rtnJson);
               }
             }
             if ( respCode != 0 && respMsg.empty() ) {
               respMsg = (respCode == (int)SetCode::Ignored) ? "Key not found" : "ERROR";
             }
-            respObj.set("devices",deviceArr);
+            respObj.set(itemType,itemArr);
             writeJsonResp(out, respCode, respMsg, respObj);
           } else {
             respStatus = HTTPResponse::HTTP_BAD_REQUEST;
-            out << "Invalid device http METHOD: '" << strMethod << "'. URI: " << req.getURI() << endl;
-            cerr << __PRETTY_FUNCTION__ << " Invalid device METHOD: '" << strMethod << "'. URI: " << req.getURI() << endl;
+            out << "Invalid " << itemType << " http METHOD: '" << strMethod << "'. URI: " << req.getURI() << endl;
+            cerr << __PRETTY_FUNCTION__ << " Invalid " << itemType << " METHOD: '" << strMethod << "'. URI: " << req.getURI() << endl;
           }
         } else if ( vecPath[0] == "app" ) {    
           if ( strMethod == "get" ) {

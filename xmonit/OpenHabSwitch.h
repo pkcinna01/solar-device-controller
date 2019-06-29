@@ -83,7 +83,17 @@ namespace xmonit {
           automation::logBuffer << __PRETTY_FUNCTION__ << " ERROR" << endl;
         } else {
           bError = false;
-          bLastIsOnCheckResult = (itemState == "ON");
+          bool bOnFromOpenHab = itemState == "ON";
+          
+          /* open hab or the actual power switch on the device may have changed on/off status so treat that like a remote set command */
+          Constraint* pConstraint = getConstraint();
+          if ( pConstraint && pConstraint->isPassed() != bOnFromOpenHab  ) {
+            pConstraint->overrideTestResult(bOnFromOpenHab);
+            pConstraint->pRemoteExpiredOp->reset();
+            automation::logBuffer << __PRETTY_FUNCTION__ << "=" << bOnFromOpenHab << " '" << this->getTitle() << "' change from openhab so updated contraint" << endl;
+          }
+          
+          bLastIsOnCheckResult = bOnFromOpenHab;
           lastIsOnCachedResultTimeMs = automation::millisecs();
           //automation::logBuffer << __PRETTY_FUNCTION__ << " result:" << bLastIsOnCheckResult << endl;
         } 
@@ -107,7 +117,7 @@ namespace xmonit {
         automation::logBuffer << endl;
       } else {
 	      bError = false;
-        automation::logBuffer << __PRETTY_FUNCTION__ << " bOn=" << bOn << endl;
+        automation::logBuffer << __PRETTY_FUNCTION__ << " '" << this->getTitle() << "' bOn=" << bOn << endl;
         bLastIsOnCheckResult = bOn;
         lastIsOnCachedResultTimeMs = automation::millisecs();
         Constraint* pConstraint = getConstraint();

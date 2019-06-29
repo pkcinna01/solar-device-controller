@@ -16,13 +16,16 @@ namespace automation {
     if ( mode != TEST_MODE ) {
       if (mode&REMOTE_MODE) {
         if ( pRemoteExpiredOp->test() ) {
-          // remote connection lost so process locally
+          // process locally because remote setting has expired
           resolvedMode = mode-REMOTE_MODE;
-          if ( resolvedMode == INVALID_MODE ) {
-            // leave old result on lost master connection
+          if ( resolvedMode == 0 ) {
+            // just return old result if REMOTE with no qualifiers
+            checkValue(); // composite and nested constraints need checkValue call for deferred state tracking
             return bPassed;
           }
-        } else {
+        } else {            
+          // honor value set remotely but call checkValue to update transition and delay states
+          checkValue(); // composite and nested constraints need checkValue call for deferred state tracking
           return bPassed;
         }
       }
@@ -145,17 +148,27 @@ namespace automation {
         setFailMargin(atof(pszVal));
         strResultValue = text::asString(getFailMargin());
         rtn = SetCode::OK;
-      } else if ( !strcasecmp_P(pszKey,PSTR("remoteExpiredDelayMinutes")) ) {
+      } else if ( !strcasecmp_P(pszKey,PSTR("remoteValueExpOp")) ) {
         if ( !strcasecmp_P(pszVal,PSTR("auto")) ) {
           setRemoteExpiredOp(&defaultRemoteExpiredOp);
           strResultValue = "auto (client watchdog)";
-        } else {
-          float delayMs = atof(pszVal)*MINUTES;
-          setRemoteExpiredOp(new Constraint::RemoteExpiredDelayOp(delayMs));
-          strResultValue = text::asString(delayMs);
+          rtn = SetCode::OK;
+        } else if (!strncasecmp_P(pszKey,PSTR("delay:"),6) ) {
+          float delayMs = atof(&pszVal[6]);
+          RemoteExpiredDelayOp* pExpOp = new RemoteExpiredDelayOp(delayMs);
+          setRemoteExpiredOp(pExpOp);
+          strResultValue = text::asString(pExpOp->delayMs);
           strResultValue += " (millisecs)";
+          rtn = SetCode::OK;
+        } else {
+          if (pRespStream) {
+            if (pRespStream->rdbuf()->in_avail()) {
+              (*pRespStream) << ", ";
+            }
+            (*pRespStream) << RVSTR("Not a valid remote value expriation op (auto|delay): ") << pszVal;
+          }
+          rtn = SetCode::Error;
         }
-        rtn = SetCode::OK;
       }
       if (pRespStream && rtn == SetCode::OK ) {
         if (pRespStream->rdbuf()->in_avail()) {
@@ -187,7 +200,10 @@ namespace automation {
       if ( bIsDeferred ) {
         w.printlnNumberObj(F("deferredRemainingMs"),getDeferredRemainingMs(), ",");    
       }
-      w.printlnStringObj(F("mode"), Constraint::modeToString(mode).c_str(),",");  
+      w.printlnStringObj(F("mode"), Constraint::modeToString(mode).c_str(),","); 
+      w.printKey(F("remoteValueExpOp"));
+      pRemoteExpiredOp->print(w);
+      w.noPrefixPrintln(",");
       printVerboseExtra(w);  
     }
     w.printStringObj(F("type"), getType().c_str());

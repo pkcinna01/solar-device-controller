@@ -91,7 +91,6 @@ namespace automation {
 
     virtual bool checkValue() = 0;
     virtual string getTitle() const { return getType(); }
-    virtual bool isSynchronizable() const { return true; }
     virtual bool test();
     
     struct RemoteExpiredOp {
@@ -102,6 +101,15 @@ namespace automation {
       }
 
       virtual void reset(){} // place to track when a remote event occured
+
+      virtual void print(json::JsonStreamWriter& w) {
+        w.noPrefixPrintln("{");
+        w.increaseDepth();
+        w.printlnStringObj(F("type"), F("auto"),",");
+        w.printlnBoolObj(F("expired"), test());
+        w.decreaseDepth();
+        w.print("}");
+      }
     };
 
     static RemoteExpiredOp defaultRemoteExpiredOp;
@@ -118,6 +126,17 @@ namespace automation {
 
       void reset() override {
         attributeSetTimeMs = automation::millisecs();
+      }
+
+      virtual void print(json::JsonStreamWriter& w) override {
+        w.noPrefixPrintln("{");
+        w.increaseDepth();
+        w.printlnStringObj(F("type"), F("delay"),",");
+        w.printlnNumberObj(F("delayMs"), delayMs, ",");
+        w.printlnStringObj(F("elapsedMs"), automation::millisecs() - attributeSetTimeMs, ",");
+        w.printlnBoolObj(F("expired"), test());
+        w.decreaseDepth();
+        w.print("}");
       }
     };
     
@@ -159,13 +178,26 @@ namespace automation {
     unsigned long getDeferredRemainingMs() const { return max(0UL,(bPassed?failDelayMs:passDelayMs) - deferredDuration()); }
     bool isDeferred() const { return deferredResultCnt > 0; }
 
-    void resetDeferredTime() {
-      deferredTimeMs = 0;
+    Constraint* findChildById(unsigned int id) const {
+      for ( auto pChild : children ) {
+        if ( pChild->id == id ) {
+          return pChild;
+        }
+      }
+      return nullptr;
+    }
+
+    void resetDeferredCnt() {
+      deferredTimeMs = millisecs();
+      deferredResultCnt = 0;
+      for ( auto pChild : children ) {
+        pChild->resetDeferredCnt();
+      }
     }
 
     bool overrideTestResult(bool bNewResult) {
-      resetDeferredTime();
-      if ( bNewResult != bPassed ) {
+      resetDeferredCnt();
+      if ( bNewResult != isPassed() ) {
         setPassed(bNewResult);
       }
       return bPassed;

@@ -4,6 +4,7 @@
 #include "automation/Automation.h"
 #include "automation/constraint/ConstraintEventHandler.h"
 #include "automation/device/Device.h"
+#include "automation/sensor/Sensor.h"
 
 #include <Poco/Util/Application.h>
 
@@ -30,7 +31,17 @@ public:
     //logBuffer << "DEFERRED(next=" << bNext << ",delay=" << delayMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
   };
   void resultChanged(Constraint* pConstraint,bool bNew,unsigned long lastDurationMs) const override {
-    logBuffer << "CHANGED(new=" << bNew << ",lastDuration=" << lastDurationMs/1000.0 << "s): " << pConstraint->getTitle() << endl;
+    logBuffer << "CHANGED(new=" << bNew << ",lastDuration=" << lastDurationMs/1000.0 << "s): ";
+    // Print device name if not current device
+    if ( pConstraint && currentDevice && !currentDevice->findConstraint(pConstraint->id) ) {
+      Device* pDevice = devices.findConstraintOwner(pConstraint->id);
+      if ( pDevice ) {
+        logBuffer << "DEVICE: '" << pDevice->getTitle() << "' CONSTRAINT: ";
+      }
+    }
+    printConstraintTitleAndValue(logBuffer,pConstraint);
+    logBuffer << endl;
+    //logBuffer << pConstraint->getTitle() << endl;
   };
   //void resultSame(Constraint* pConstraint,bool bVal,unsigned long lastDurationMs) const override {
   //  logBuffer << "SAME(value=" << bVal << ",duration=" << lastDurationMs << "ms): " << pConstraint->getTitle() << endl;
@@ -44,6 +55,7 @@ public:
   static void signalHandlerFn (int val);
 
   Devices devices;
+  Sensors sensors;
   automation::Device* currentDevice = nullptr;
 
   bool bEnabled;
@@ -53,6 +65,10 @@ public:
   }
 
   virtual int main(const std::vector<std::string> &args);
+
+  protected:
+  
+  std::ostream& printConstraintTitleAndValue(std::ostream& os, Constraint* pConstraint) const;
   
 };
 

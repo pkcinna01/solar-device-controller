@@ -80,7 +80,12 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
                             }
                             return rtnTemp;
                           });
-  */                                 
+  */    
+  sensors.push_back(&soc);
+  sensors.push_back(&chargersInputPower);
+  sensors.push_back(&batteryBankVoltage);
+  sensors.push_back(&batteryBankPower);
+
   static SensorFn requiredPowerTotal("Required Power", []() -> float {
     float requiredWatts = 0;
     for (automation::Device *pDevice : pInstance->devices)
@@ -125,7 +130,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     }
     void valueSet(const Capability *pCapability, float newVal, float oldVal) override
     {
-      cout << __PRETTY_FUNCTION__ << " updating prometheus guage to " << newVal << endl;
+      automation::logBuffer << __PRETTY_FUNCTION__ << " updating prometheus guage to " << newVal << endl;
       pOnOffGauge->Set(newVal);
     }
   };
@@ -139,7 +144,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
     OrConstraint fullSocOrEnoughPower{{&fullSoc, &haveRequiredPower}};
     TimeRangeConstraint timeRange;
-    SimultaneousConstraint simultaneousToggleOn{4 * MINUTES, &toggle};
+    SimultaneousConstraint simultaneousToggleOn{2 * MINUTES, &toggle};
     NotConstraint notSimultaneousToggleOn{&simultaneousToggleOn};
     TransitionDurationConstraint minOffDuration{4 * MINUTES, &toggle, 0, 1};
     AndConstraint hvacConstraints{{&timeRange, &notSimultaneousToggleOn, &minVoltage, &cutoffVoltage, &fullSocOrEnoughPower, &minOffDuration, &cutoffPower}};
@@ -149,22 +154,24 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       xmonit::OpenHabSwitch(title, openHabItem, DEFAULT_APPLIANCE_WATTS), 
       timeRange(start,end)
     {
-      fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(3 * MINUTES).setFailMargin(25);
+      fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(25);
       haveRequiredPower.setPassDelayMs(30 * SECONDS).setFailDelayMs(1 * MINUTES).setFailMargin(80).setPassMargin(25);
-      minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
+      minVoltage.setFailDelayMs(45 * SECONDS).setFailMargin(0.5).setPassMargin(1.25);
+      cutoffVoltage.setPassMargin(3.0).setPassDelayMs(4*MINUTES);
       setConstraint(&hvacConstraints);
       metrics.init(this);
     }
 
   } familyRoomHvac1Switch("Family Room HVAC 1", "FamilyRoomHvac1_Switch", {10, 00, 0}, {17, 00, 00}),
-    familyRoomHvac2Switch("Family Room HVAC 2", "FamilyRoomHvac2_Switch", {11, 30, 0}, {15, 30, 00}),
+    familyRoomHvac2Switch("Family Room HVAC 2", "FamilyRoomHvac2_Switch", {10, 00, 0}, {17, 00, 00}),
     sunroomHvacSwitch("Sunroom HVAC", "SunroomMaster_Switch", {9, 30, 0}, {18, 00, 00});
   
-  familyRoomHvac2Switch.minVoltage.setFailDelayMs(45 * SECONDS);
-  familyRoomHvac2Switch.cutoffVoltage.setFixedThreshold(23.75);
-  familyRoomHvac2Switch.haveRequiredPower.setFailDelayMs(1.5 * MINUTES);
-  sunroomHvacSwitch.minVoltage.setFailDelayMs(1.5 * MINUTES);
-  sunroomHvacSwitch.cutoffVoltage.setFixedThreshold(23.25);
+  familyRoomHvac1Switch.haveRequiredPower.setPassDelayMs(45 * SECONDS).setPassMargin(100);
+  familyRoomHvac1Switch.minVoltage.setFailDelayMs(30 * SECONDS);
+  familyRoomHvac1Switch.cutoffVoltage.setFixedThreshold(23.85);
+  familyRoomHvac1Switch.haveRequiredPower.setFailDelayMs(1.5 * MINUTES);
+  sunroomHvacSwitch.minVoltage.setFailDelayMs(1.0 * MINUTES);
+  sunroomHvacSwitch.cutoffVoltage.setFixedThreshold(23.60);
   sunroomHvacSwitch.cutoffPower.setFailDelayMs(30*SECONDS);
   sunroomHvacSwitch.haveRequiredPower.setFailDelayMs(2.5 * MINUTES);
 
@@ -182,9 +189,9 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
     OrConstraint fullSocOrEnoughPower{{&fullSoc, &haveRequiredPower}};
     TimeRangeConstraint timeRange1{{8, 0, 0}, {16, 00, 0}};
-    TimeRangeConstraint timeRange2{{18, 00, 0}, {19, 00, 0}};
+    TimeRangeConstraint timeRange2{{16, 00, 0}, {18, 00, 0}};
     OrConstraint validTime{{&timeRange1,&timeRange2}};
-    SimultaneousConstraint simultaneousToggleOn{1 * MINUTES, &toggle};
+    SimultaneousConstraint simultaneousToggleOn{30 * SECONDS, &toggle};
     NotConstraint notSimultaneousToggleOn{&simultaneousToggleOn};
     TransitionDurationConstraint minOffDuration{2 * MINUTES, &toggle, 0, 1};
 
@@ -203,7 +210,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     }
   } familyRoomAuxSwitch;
 
-  static struct Outlet1Switch : xmonit::GpioPowerSwitch
+  static struct PlantLightsSwitch : xmonit::GpioPowerSwitch
   {
 
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS+0.2, batteryBankVoltage};
@@ -211,16 +218,16 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
     OrConstraint fullSocOrEnoughPower{{&fullSoc, &haveRequiredPower}};
     TimeRangeConstraint timeRange1{{8, 0, 0}, {16, 00, 0}};
-    TimeRangeConstraint timeRange2{{18, 00, 0}, {19, 00, 0}};
+    TimeRangeConstraint timeRange2{{16, 00, 0}, {18, 00, 0}};
     OrConstraint validTime{{&timeRange1,&timeRange2}};
-    SimultaneousConstraint simultaneousToggleOn{1 * MINUTES, &toggle};
+    SimultaneousConstraint simultaneousToggleOn{30 * SECONDS, &toggle};
     NotConstraint notSimultaneousToggleOn{&simultaneousToggleOn};
     TransitionDurationConstraint minOffDuration{2 * MINUTES, &toggle, 0, 1};
     AndConstraint plantLightsConstraints{{&validTime, &notSimultaneousToggleOn, &minVoltage, 
                                           &fullSocOrEnoughPower, &minOffDuration, &oneOrMoreHvacsOff}};
     PowerSwitchMetrics metrics;
 
-    Outlet1Switch() : xmonit::GpioPowerSwitch("Plant Lights", 15 /*GPIO PIN*/, LIGHTS_SET_2_WATTS)
+    PlantLightsSwitch() : xmonit::GpioPowerSwitch("Plant Lights", 15 /*GPIO PIN*/, LIGHTS_SET_2_WATTS)
     {
       fullSoc.setPassDelayMs(0.5 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(15);
       haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(5 * MINUTES).setFailMargin(50).setPassMargin(10);
@@ -228,7 +235,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       setConstraint(&plantLightsConstraints);
       metrics.init(this);
     }
-  } outlet1Switch;
+  } gpioPlantLightsSwitch;
 
   /*static struct RaspberryPi1Fan : xmonit::GpioPowerSwitch
   {
@@ -244,7 +251,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     }
   } pi1Fan;*/
 
-  devices.push_back( &outlet1Switch );
+  devices.push_back( &gpioPlantLightsSwitch );
   devices.push_back( &familyRoomAuxSwitch );
   devices.push_back( &sunroomHvacSwitch );
   devices.push_back( &familyRoomHvac1Switch );
@@ -274,7 +281,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
 
   SimultaneousConstraint::connectListeners({&familyRoomHvac1Switch.simultaneousToggleOn, &familyRoomHvac2Switch.simultaneousToggleOn,
-    &familyRoomAuxSwitch.simultaneousToggleOn, &sunroomHvacSwitch.simultaneousToggleOn, &outlet1Switch.simultaneousToggleOn});
+    &familyRoomAuxSwitch.simultaneousToggleOn, &sunroomHvacSwitch.simultaneousToggleOn, &gpioPlantLightsSwitch.simultaneousToggleOn});
 
   unsigned long nowMs = automation::millisecs();
   //unsigned long syncTimeMs = nowMs;
@@ -327,11 +334,12 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       Poco::Mutex::ScopedLock lock(httpServer.mutex);
 
       currentDevice = pDevice;
+      automation::PowerSwitch *pPowerSwitch = dynamic_cast<automation::PowerSwitch*>(pDevice);
 
       automation::clearLogBuffer();
       bool bIgnoreSameState = !bFirstTime;
-      bool bIsOn = pDevice->isPassed();
       pDevice->applyConstraint(bIgnoreSameState);
+      bool bIsOn = pPowerSwitch ? pPowerSwitch->isOn() : pDevice->isPassed(); // call isOn() to get remote value (can change from openhab interface)
       if ( bIsOn && !pDevice->isPassed() ) {
         turnedOffSwitches.push_back(pDevice);
       }
@@ -342,11 +350,10 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       automation::logBufferToString(strLogBuffer);
       if (!strLogBuffer.empty() )
       {
-        cout << "=================================================================================" << endl;
+        cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
         cout << "DEVICE: " << pDevice->name;
-        automation::PowerSwitch *pPowerSwitch = dynamic_cast<automation::PowerSwitch*>(pDevice);
         if ( pPowerSwitch ) {
-          cout << ", ON: " << pPowerSwitch->isOn();
+          cout << ", ON: " << bIsOn;
         } 
         cout << ", TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
         cout << "SENSORS: [";
@@ -358,6 +365,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
               << strLogBuffer << std::flush;
         //pPowerSwitch->printVerbose();
         //cout << endl;
+        cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << flush;
       }
     }
     currentDevice = nullptr;
@@ -370,33 +378,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
 
     unsigned long nowMs = automation::millisecs();
-    /*unsigned long elapsedSyncDurationMs = nowMs - syncTimeMs;
-    if (elapsedSyncDurationMs > 30 * MINUTES)
-    {
-      cout << ">>>>>>>>>>>>>>>>>>>>> Synchronizing current state (sending to IFTTTT) <<<<<<<<<<<<<<<<<<<<<<" << endl;
-      automation::bSynchronizing = true;
-      for (automation::Device *pDevice : devices)
-      {
-        automation::PowerSwitch *pPowerSwitch = dynamic_cast<automation::PowerSwitch*>(pDevice);
-        if ( !pPowerSwitch ) {
-          continue;
-        }
-        automation::clearLogBuffer();
-        bool bOn = pPowerSwitch->isOn();
-        cout << "DEVICE '" << pPowerSwitch->name << "' = " << (bOn ? "ON" : "OFF") << endl;
-        pPowerSwitch->setOn(bOn);
-        if (pPowerSwitch->bError)
-        {
-          iDeviceErrorCnt++;
-        }
-        string strLogBuffer;
-        automation::logBufferToString(strLogBuffer);
-        cout << strLogBuffer;
-      }
-      automation::bSynchronizing = false;
-      syncTimeMs = nowMs;
-    }
-    else */
+
     if (bFirstTime)
     {
       bFirstTime = false;
@@ -427,3 +409,21 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   cout << "Exiting " << (args.empty() ? "solar_ifttt" : args[0]) << endl;
   return 0;
 }
+
+std::ostream& SolarPowerMgrApp::printConstraintTitleAndValue(std::ostream& os, Constraint* pConstraint) const {
+  CompositeConstraint* pComposite = dynamic_cast<CompositeConstraint*>(pConstraint);
+  if ( pComposite ) {
+    os << "(";     
+    for (size_t i = 0; i < pComposite->getChildren().size(); i++) {
+      printConstraintTitleAndValue(os,pComposite->getChildren()[i]);
+      if (i + 1 < pComposite->getChildren().size()) {
+        os << " " << pComposite->getJoinName() << " ";
+      }
+    }
+    os << ")" << "=" << pConstraint->isPassed();
+  } else {
+    os << pConstraint->getTitle() << "=" << pConstraint->isPassed();
+  }
+  return os;
+}
+

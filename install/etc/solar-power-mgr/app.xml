@@ -1,0 +1,12 @@
+<config>
+    <prometheus exportBindAddress="0.0.0.0:8095" solarMetricsUrl="http://solar:9202/actuator/prometheus"/>
+    <ifttt key="KEY-FROM-IFTTT-ACCOUNT_HERE"/>
+    <maxInputPower>1800</maxInputPower>
+    <maxOutputPower>2200</maxOutputPower>
+    <httpListener port="8096">
+        <allowedHosts>
+            <host>127.0.0.1</host>
+	        <host>192.168.0.99</host>
+        </allowedHosts>
+    </httpListener>
+</config>

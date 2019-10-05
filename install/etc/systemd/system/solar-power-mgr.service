@@ -1,0 +1,13 @@
+[Unit]
+Description=Use prometheus solar metrics from solar-web project to control switches and devices  
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=xmonit
+Group=xmonit
+Type=simple
+ExecStart=/usr/local/bin/solar-power-mgr /etc/solar-power-mgr/app.xml
+
+[Install]
+WantedBy=multi-user.target

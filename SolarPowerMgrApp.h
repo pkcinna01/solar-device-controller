@@ -18,7 +18,7 @@ using namespace Poco;
 #define DEFAULT_MIN_VOLTS 24.70
 
 #define LIGHTS_SET_1_WATTS 120
-#define LIGHTS_SET_2_WATTS 100
+#define LIGHTS_SET_2_WATTS 160
 
 #define FULL_SOC_PERCENT 98.00
 

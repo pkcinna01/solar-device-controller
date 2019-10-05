@@ -23,6 +23,8 @@ using namespace std;
 
 namespace xmonit {
 
+  //////////////////////////////////////////////////////////////////////////
+  // Handles sending requests to the Java Spring Web App that controls Arduinos and Charge Controllers
   class XmonitSession : public HTTPClientSession {
 
   public:

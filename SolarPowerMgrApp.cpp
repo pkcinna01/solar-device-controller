@@ -138,13 +138,13 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   static struct HvacSwitch : xmonit::OpenHabSwitch
   {    
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
-    AtLeast<float, Sensor &> cutoffVoltage{23.75, batteryBankVoltage};
+    AtLeast<float, Sensor &> cutoffVoltage{23.60, batteryBankVoltage};
     AtMost<float, Sensor&> cutoffPower{maxOutputPower,batteryBankPower};
     AtLeast<float, Sensor &> haveRequiredPower{requiredPowerTotal, chargersInputPower};
     AtLeast<float, Sensor &> fullSoc{FULL_SOC_PERCENT, soc};
     OrConstraint fullSocOrEnoughPower{{&fullSoc, &haveRequiredPower}};
     TimeRangeConstraint timeRange;
-    SimultaneousConstraint simultaneousToggleOn{2 * MINUTES, &toggle};
+    SimultaneousConstraint simultaneousToggleOn{2 * MINUTES, &toggle}; // should be larger than fullSoc fail delay
     NotConstraint notSimultaneousToggleOn{&simultaneousToggleOn};
     TransitionDurationConstraint minOffDuration{4 * MINUTES, &toggle, 0, 1};
     AndConstraint hvacConstraints{{&timeRange, &notSimultaneousToggleOn, &minVoltage, &cutoffVoltage, &fullSocOrEnoughPower, &minOffDuration, &cutoffPower}};
@@ -154,26 +154,25 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       xmonit::OpenHabSwitch(title, openHabItem, DEFAULT_APPLIANCE_WATTS), 
       timeRange(start,end)
     {
-      fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(25);
-      haveRequiredPower.setPassDelayMs(30 * SECONDS).setFailDelayMs(1 * MINUTES).setFailMargin(80).setPassMargin(25);
-      minVoltage.setFailDelayMs(45 * SECONDS).setFailMargin(0.5).setPassMargin(1.25);
+      fullSoc.setPassDelayMs(1 * MINUTES).setFailDelayMs(1.75 * MINUTES); // large fail delay so haveRequiredPower has time to decide. real cutoff is voltage
+      haveRequiredPower.setPassDelayMs(30 * SECONDS).setFailDelayMs(1.5 * MINUTES).setFailMargin(90).setPassMargin(30);
+      minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5).setPassMargin(1.25);
       cutoffVoltage.setPassMargin(3.0).setPassDelayMs(4*MINUTES);
       setConstraint(&hvacConstraints);
       metrics.init(this);
     }
 
-  } familyRoomHvac1Switch("Family Room HVAC 1", "FamilyRoomHvac1_Switch", {10, 00, 0}, {17, 00, 00}),
-    familyRoomHvac2Switch("Family Room HVAC 2", "FamilyRoomHvac2_Switch", {10, 00, 0}, {17, 00, 00}),
+  } familyRoomHvac2Switch("Family Room HVAC 1", "FamilyRoomHvac1_Switch", {11, 45, 0}, {14, 45, 00}),
+    familyRoomHvac1Switch("Family Room HVAC 2", "FamilyRoomHvac2_Switch", {10, 00, 0}, {17, 00, 00}),
     sunroomHvacSwitch("Sunroom HVAC", "SunroomMaster_Switch", {9, 30, 0}, {18, 00, 00});
   
-  familyRoomHvac1Switch.haveRequiredPower.setPassDelayMs(45 * SECONDS).setPassMargin(100);
-  familyRoomHvac1Switch.minVoltage.setFailDelayMs(30 * SECONDS);
-  familyRoomHvac1Switch.cutoffVoltage.setFixedThreshold(23.85);
-  familyRoomHvac1Switch.haveRequiredPower.setFailDelayMs(1.5 * MINUTES);
+  familyRoomHvac2Switch.minVoltage.setFailDelayMs(45 * SECONDS);
+  familyRoomHvac2Switch.cutoffVoltage.setFixedThreshold(23.70);
+  familyRoomHvac2Switch.haveRequiredPower.setPassDelayMs(1 * MINUTES).setFailDelayMs(1 * MINUTES);
   sunroomHvacSwitch.minVoltage.setFailDelayMs(1.0 * MINUTES);
-  sunroomHvacSwitch.cutoffVoltage.setFixedThreshold(23.60);
+  sunroomHvacSwitch.cutoffVoltage.setFixedThreshold(23.50);
   sunroomHvacSwitch.cutoffPower.setFailDelayMs(30*SECONDS);
-  sunroomHvacSwitch.haveRequiredPower.setFailDelayMs(2.5 * MINUTES);
+  sunroomHvacSwitch.haveRequiredPower.setPassDelayMs(30 * SECONDS).setFailDelayMs(2.5 * MINUTES);
 
 
   static ToggleStateConstraint sunroomHvacOff{&sunroomHvacSwitch.toggle,false}; 
@@ -181,7 +180,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   static ToggleStateConstraint familyRoomHvac2Off{&familyRoomHvac2Switch.toggle,false}; 
   static OrConstraint oneOrMoreHvacsOff{{&familyRoomHvac1Off,&familyRoomHvac2Off,&sunroomHvacOff}};
 
-  static struct FamilyRoomAuxSwitch : xmonit::OpenHabSwitch
+  struct OpenHabLightSwitch : xmonit::OpenHabSwitch
   {
 
     AtLeast<float, Sensor &> minVoltage{DEFAULT_MIN_VOLTS, batteryBankVoltage};
@@ -200,16 +199,19 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
     PowerSwitchMetrics metrics;
 
-    FamilyRoomAuxSwitch() : xmonit::OpenHabSwitch("Family Room Plant Lights", "FamilyRoomPlantLights_Switch", LIGHTS_SET_1_WATTS)
+    OpenHabLightSwitch(const string& name, const string& strOpenHabId,float requiredWatts) : xmonit::OpenHabSwitch(name,strOpenHabId,requiredWatts)
     {
-      fullSoc.setPassDelayMs(0.75 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(15);
-      haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(5 * MINUTES).setFailMargin(50).setPassMargin(10);
-      minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
+      fullSoc.setPassDelayMs(0.75 * MINUTES).setFailDelayMs(1.5 * MINUTES).setFailMargin(15);
+      haveRequiredPower.setPassDelayMs(1 * MINUTES).setFailDelayMs(2.5 * MINUTES).setFailMargin(25).setPassMargin(10);
+      minVoltage.setFailDelayMs(45 * SECONDS).setFailMargin(0.5);
       setConstraint(&familyRmAuxConstraints);
       metrics.init(this);
     }
-  } familyRoomAuxSwitch;
-
+  };
+  
+  OpenHabLightSwitch familyRoomAuxSwitch("Family Room Plant Lights", "FamilyRoomPlantLights_Switch", LIGHTS_SET_1_WATTS);
+  OpenHabLightSwitch diningRoomAuxSwitch("Dining Room Plant Lights", "Sonoff_Switch_2", LIGHTS_SET_1_WATTS);
+  
   static struct PlantLightsSwitch : xmonit::GpioPowerSwitch
   {
 
@@ -229,9 +231,9 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
     PlantLightsSwitch() : xmonit::GpioPowerSwitch("Plant Lights", 15 /*GPIO PIN*/, LIGHTS_SET_2_WATTS)
     {
-      fullSoc.setPassDelayMs(0.5 * MINUTES).setFailDelayMs(2 * MINUTES).setFailMargin(15);
-      haveRequiredPower.setPassDelayMs(2 * MINUTES).setFailDelayMs(5 * MINUTES).setFailMargin(50).setPassMargin(10);
-      minVoltage.setFailDelayMs(60 * SECONDS).setFailMargin(0.5);
+      fullSoc.setPassDelayMs(0.5 * MINUTES).setFailDelayMs(1.5 * MINUTES).setFailMargin(15);
+      haveRequiredPower.setPassDelayMs(1 * MINUTES).setFailDelayMs(2.5 * MINUTES).setFailMargin(25).setPassMargin(10);
+      minVoltage.setFailDelayMs(45 * SECONDS).setFailMargin(0.5);
       setConstraint(&plantLightsConstraints);
       metrics.init(this);
     }
@@ -253,6 +255,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
   devices.push_back( &gpioPlantLightsSwitch );
   devices.push_back( &familyRoomAuxSwitch );
+  devices.push_back( &diningRoomAuxSwitch );
   devices.push_back( &sunroomHvacSwitch );
   devices.push_back( &familyRoomHvac1Switch );
   devices.push_back( &familyRoomHvac2Switch );
@@ -281,7 +284,8 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
 
   SimultaneousConstraint::connectListeners({&familyRoomHvac1Switch.simultaneousToggleOn, &familyRoomHvac2Switch.simultaneousToggleOn,
-    &familyRoomAuxSwitch.simultaneousToggleOn, &sunroomHvacSwitch.simultaneousToggleOn, &gpioPlantLightsSwitch.simultaneousToggleOn});
+    &familyRoomAuxSwitch.simultaneousToggleOn, &sunroomHvacSwitch.simultaneousToggleOn, &gpioPlantLightsSwitch.simultaneousToggleOn,
+    &diningRoomAuxSwitch.simultaneousToggleOn});
 
   unsigned long nowMs = automation::millisecs();
   //unsigned long syncTimeMs = nowMs;

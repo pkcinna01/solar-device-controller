@@ -187,16 +187,17 @@ namespace automation {
       return nullptr;
     }
 
-    void resetDeferredCnt() {
-      deferredTimeMs = millisecs();
+    void resetDeferredDuration() {
+      deferredTimeMs = 0;
       deferredResultCnt = 0;
       for ( auto pChild : children ) {
-        pChild->resetDeferredCnt();
+        pChild->resetDeferredDuration();
       }
     }
 
     bool overrideTestResult(bool bNewResult) {
-      resetDeferredCnt();
+      deferredTimeMs = automation::millisecs();
+      deferredResultCnt = 0;
       if ( bNewResult != isPassed() ) {
         setPassed(bNewResult);
       }

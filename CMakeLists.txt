@@ -36,19 +36,32 @@ find_package(OpenSSL REQUIRED)
 set(POCO_PREFIX      "/usr/local")
 set(POCO_INCLUDE_DIR "${POCO_PREFIX}/include")
 set(POCO_LIB_DIR     "${POCO_PREFIX}/lib")
-set(POCO_LIBS        "${POCO_LIB_DIR}/libPocoNetd.so"
-        "${POCO_LIB_DIR}/libPocoNetSSLd.so"
-        "${POCO_LIB_DIR}/libPocoUtild.so"
-        "${POCO_LIB_DIR}/libPocoJSONd.so"
-        "${POCO_LIB_DIR}/libPocoCryptod.so"
-        "${POCO_LIB_DIR}/libPocoXMLd.so"
-        "${POCO_LIB_DIR}/libPocoFoundationd.so")
+set(POCO_USE_STATIC_LIBS TRUE)
+
+IF(POCO_USE_STATIC_LIBS)
+	#SET(CMAKE_EXE_LINKER_FLAGS "-static")
+    SET(POCO_LIB_EXT ".a")
+    SET(PROMETHEUS_LIB_EXT ".a")
+ELSE()
+    SET(POCO_LIB_EXT ".so")
+    SET(PROMETHEUS_LIB_EXT ".so")
+ENDIF(POCO_USE_STATIC_LIBS)
+
+set(POCO_LIBS 
+	"${POCO_LIB_DIR}/libPocoNet${POCO_LIB_EXT}"
+        "${POCO_LIB_DIR}/libPocoNetSSL${POCO_LIB_EXT}"
+        "${POCO_LIB_DIR}/libPocoUtil${POCO_LIB_EXT}"
+        "${POCO_LIB_DIR}/libPocoJSON${POCO_LIB_EXT}"
+        "${POCO_LIB_DIR}/libPocoCrypto${POCO_LIB_EXT}"
+        "${POCO_LIB_DIR}/libPocoXML${POCO_LIB_EXT}"
+        "${POCO_LIB_DIR}/libPocoFoundation${POCO_LIB_EXT}")
 
 set(PROMETHEUS_DEPLOY_DIR "/usr/local")
 set(PROMETHEUS_INCLUDE_DIR "${PROMETHEUS_DEPLOY_DIR}/include")
-set(PROMETHEUS_LIBS "${PROMETHEUS_DEPLOY_DIR}/lib/libprometheus-cpp-core.so"
-        "${PROMETHEUS_DEPLOY_DIR}/lib/libprometheus-cpp-push.so"
-        "${PROMETHEUS_DEPLOY_DIR}/lib/libprometheus-cpp-pull.so"
+set(PROMETHEUS_LIBS 
+        "${PROMETHEUS_DEPLOY_DIR}/lib/libprometheus-cpp-push${PROMETHEUS_LIB_EXT}"
+        "${PROMETHEUS_DEPLOY_DIR}/lib/libprometheus-cpp-pull${PROMETHEUS_LIB_EXT}"
+	"${PROMETHEUS_DEPLOY_DIR}/lib/libprometheus-cpp-core${PROMETHEUS_LIB_EXT}"
 )
 
 target_include_directories(solar-power-mgr PRIVATE "${POCO_INCLUDE_DIR}" "${PROMETHEUS_INCLUDE_DIR}")

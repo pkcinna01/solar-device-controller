@@ -87,10 +87,11 @@ namespace xmonit {
           
           /* open hab or the actual power switch on the device may have changed on/off status so treat that like a remote set command */
           Constraint* pConstraint = getConstraint();
-          if ( pConstraint && pConstraint->isPassed() != bOnFromOpenHab  ) {
+          if ( pConstraint && pConstraint->isPassed() != bOnFromOpenHab  ) {            
             pConstraint->overrideTestResult(bOnFromOpenHab);
             pConstraint->pRemoteExpiredOp->reset();
-            automation::logBuffer << __PRETTY_FUNCTION__ << "=" << bOnFromOpenHab << " '" << this->getTitle() << "' change from openhab so updated contraint" << endl;
+            automation::logBuffer << __PRETTY_FUNCTION__ << "=" << bOnFromOpenHab << " '" << this->getTitle() << "' change from openhab so updated contraint (openhab state: " 
+              << itemState << ")" << endl;
           }
           
           bLastIsOnCheckResult = bOnFromOpenHab;

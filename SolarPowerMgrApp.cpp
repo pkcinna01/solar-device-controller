@@ -23,6 +23,7 @@
 #include <iostream>
 #include <numeric>
 
+#include <prometheus/gauge.h>
 #include <prometheus/exposer.h>
 #include <prometheus/registry.h>
 

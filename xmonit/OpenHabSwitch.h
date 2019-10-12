@@ -91,7 +91,7 @@ namespace xmonit {
             pConstraint->overrideTestResult(bOnFromOpenHab);
             pConstraint->pRemoteExpiredOp->reset();
             automation::logBuffer << __PRETTY_FUNCTION__ << "=" << bOnFromOpenHab << " '" << this->getTitle() << "' change from openhab so updated contraint (openhab state: " 
-              << itemState << ")" << endl;
+              << itemState.toString() << ")" << endl;
           }
           
           bLastIsOnCheckResult = bOnFromOpenHab;

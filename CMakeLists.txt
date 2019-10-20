@@ -21,6 +21,7 @@ add_executable(solar-power-mgr main.cpp
         automation/capability/Capability.cpp
         automation/constraint/Constraint.cpp
         HttpServer.cpp
+        xmonit/OneWireTherm.cpp
         SolarMetrics.h
         automation/constraint/ScheduledConstraint.h
         automation/constraint/BooleanConstraint.h

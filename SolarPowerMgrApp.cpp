@@ -15,6 +15,7 @@
 #include "automation/constraint/TimeRangeConstraint.h"
 #include "automation/constraint/TransitionDurationConstraint.h"
 #include "automation/device/Device.h"
+#include "xmonit/OneWireTherm.h"
 
 #include "SolarMetrics.h"
 #include "HttpServer.h"
@@ -22,6 +23,7 @@
 #include <signal.h>
 #include <iostream>
 #include <numeric>
+#include <memory>
 
 #include <prometheus/gauge.h>
 #include <prometheus/exposer.h>
@@ -117,6 +119,27 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
   static auto prometheusRegistry = std::make_shared<Registry>();
 
+  // add some sensors directly to prometheus export so we can track misc temps in grafana
+  vector<std::unique_ptr<xmonit::OneWireThermSensor>> oneWireThermSensors;
+  xmonit::OneWireThermSensor::createMatching(oneWireThermSensors,conf);
+  prometheus::Family<Gauge> *pSensorGauges = &(BuildGauge().Name("solar_power_mgr_sensor").Labels({{"type", "OneWireTherm"}}).Register(*prometheusRegistry));
+  
+  struct SensorMetric : automation::SensorListener {
+    prometheus::Gauge *pGauge;
+    SensorMetric(prometheus::Family<Gauge> *pSensorGauges, map<string,string>& labels){
+      pGauge = &pSensorGauges->Add(labels);
+    }
+    void changed(const Sensor* pSensor, float newVal, float oldVal) const override {
+      pGauge->Set(newVal);
+    }   
+  };
+
+  pSensorGauges = &(BuildGauge().Name("solar_power_mgr_sensor").Labels({{"type", "OneWireTherm"}}).Register(*prometheusRegistry));
+  for( auto& s : oneWireThermSensors) {
+    map<string,string> labels = {{"metric", "celciusTemp"},{"name",s->name}, {"title",s->getTitle()}};
+    s->pListener = unique_ptr<SensorMetric>(new SensorMetric(pSensorGauges,labels));
+  }
+
   struct PowerSwitchMetrics : Capability::CapabilityListener
   {
     prometheus::Family<Gauge> *pGauges;
@@ -125,7 +148,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
     void init(automation::PowerSwitch *powerSwitch)
     {
-      pGauges = &(BuildGauge().Name("solar_ifttt_device").Labels({{"name", powerSwitch->name.c_str()}}).Register(*prometheusRegistry));
+      pGauges = &(BuildGauge().Name("solar_power_mgr_device").Labels({{"name", powerSwitch->name.c_str()}}).Register(*prometheusRegistry));
       pOnOffGauge = &pGauges->Add({{"metric", "on"}});
       powerSwitch->toggle.addListener(this);
     }
@@ -312,9 +335,22 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   Exposer exposer{conf.getString("prometheus[@exportBindAddress]", "127.0.0.1:8095")};
 
   exposer.RegisterCollectable(prometheusRegistry);
+  ulong lastResultTimeMs = 0, maxCacheAgeMs = 30000;
 
   while ( iSignalCaught == 0)
   {
+    { 
+      //TODO prometheus c++ client doesn't have a way to get value only on a pull so sample every 30 seconds for now
+      Poco::Mutex::ScopedLock lock(httpServer.mutex); // device print from httpserver thread will access sensors when it prints constraints
+      ulong nowMs = automation::millisecs();
+      if ( nowMs - lastResultTimeMs > maxCacheAgeMs ) {
+        for ( auto& s : oneWireThermSensors ) {
+          s->reset();
+          s->getValue(); 
+        }
+      }
+    }
+
     if ( !solarTimeRange.test() || !bEnabled ) {
       automation::sleep(5 * 1000);
       automation::logBufferToString(strLogBuffer);

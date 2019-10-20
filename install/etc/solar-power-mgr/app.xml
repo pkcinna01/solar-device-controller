@@ -9,4 +9,9 @@
 	        <host>192.168.0.99</host>
         </allowedHosts>
     </httpListener>
+    <oneWire path="/sys/bus/w1/devices" filter="28-*">
+        <titles>
+            <title id="28-01145bb421b6" value="Sunroom Temp"/>
+        </titles>
+    </oneWire>
 </config>

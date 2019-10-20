@@ -236,6 +236,11 @@ namespace automation {
     }
   };
 
+  class SensorListener {
+    public:
+    virtual void changed(const Sensor* pSensor, float newVal, float oldVal) const = 0;
+  };
+
   class Sensors : public AttributeContainerVector<Sensor*> {
   public:
     Sensors(){}

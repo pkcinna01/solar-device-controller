@@ -121,7 +121,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
   // add some sensors directly to prometheus export so we can track misc temps in grafana
   vector<std::unique_ptr<xmonit::OneWireThermSensor>> oneWireThermSensors;
-  xmonit::OneWireThermSensor::createMatching(oneWireThermSensors,conf);
+  xmonit::OneWireThermSensor::createSensors(conf,oneWireThermSensors);
   prometheus::Family<Gauge> *pSensorGauges = &(BuildGauge().Name("solar_power_mgr_sensor").Labels({{"type", "OneWireTherm"}}).Register(*prometheusRegistry));
   
   struct SensorMetric : automation::SensorListener {
@@ -303,7 +303,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   cout << "============== End Device(s) Setup ============" << endl
        << endl;
 
-  w.printlnVectorObj("devices",devices,"",true);
+  //w.printlnVectorObj("devices",devices,"",true);
   //w.printlnVectorObj("constraints",Constraint::all(),"",true);
 
 

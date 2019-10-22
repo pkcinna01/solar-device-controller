@@ -1,7 +1,7 @@
 #ifndef XMONIT_ONEWIRETHERM_H
 #define XMONIT_ONEWIRETHERM_H
 
-// sensor backed by a "one-wire" temp sensors (DS18B20) 
+// sensor backed by a "one-wire" temp sensor (DS18B20) 
 
 #include "xmonit.h"
 #include "../automation/sensor/Sensor.h"
@@ -32,7 +32,7 @@ namespace xmonit {
       return title;
     }
 
-    static void createMatching(vector<unique_ptr<OneWireThermSensor>>& sensors, Poco::Util::LayeredConfiguration& conf);
+    static void createSensors(Poco::Util::LayeredConfiguration& conf, vector<unique_ptr<OneWireThermSensor>>& sensors);
      
     private:
     mutable float fLastResult{0};

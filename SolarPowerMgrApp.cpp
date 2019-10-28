@@ -46,15 +46,10 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     loadConfiguration();
   }
   auto &conf = config();
-  //std::string strIftttKey = conf.getString("ifttt[@key]");
-
+  
   ConstraintEventHandlerList::instance.push_back(this);
   cout << "START TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
-  //cout << "ifttt key: '" << strIftttKey << "'" << endl;
-  //if ( strIftttKey.empty() ) {
-  //  cerr << "Aborting.  Check configuration file for <ifttt key='...'/>" << endl;
-  //  return -1;
-  //}
+  
   static float maxInputPower = (float) conf.getDouble("maxInputPower",1700); // load is kept below available input power or this configured max
   static float maxOutputPower = (float) conf.getDouble("maxOutputPower",2200); // load is kept below available input power or this configured max
                                                                                // workaround for defective thermal fuse tripping too soon
@@ -65,8 +60,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   cout << "app.xml: maxInputPower=" << maxInputPower << endl;
 
   static auto metricFilter = [](const Prometheus::Metric &metric) { return metric.name.find("solar") == 0 
-                                                                    || metric.name.find("arduino_solar") == 0
-                                                                    /*|| metric.name.find("system_temperature_celcius") == 0*/; };
+                                                                    || metric.name.find("arduino_solar") == 0; };
 
   URI url(conf.getString("prometheus[@solarMetricsUrl]", "http://solar:9202/actuator/prometheus"));
   static Prometheus::DataSource prometheusDs(url, metricFilter);
@@ -79,16 +73,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   static SensorFn batteryBankPower("Battery Bank Power",
                                   //TODO - adjust arduino current and voltage sensors for more accurate reading. for now just compensate to reduce it
                                    []() -> float { return prometheusDs.metrics["arduino_solar_batteryBankPower"].avg() * 0.965;  });
-  //Control raspberry pi fan... just run the fan all the time for now since this requires extra transistor and no room.                                   
-  /*static SensorFn pi1Temp("jaxpi1 Temperature (F)",
-                          []() -> float { 
-                            float rtnTemp = prometheusDs.metrics["system_temperature_celcius"].avg(); // will only be one
-                            if ( !isnan(rtnTemp) ) {
-                              rtnTemp = rtnTemp * 1.8 + 32;
-                            }
-                            return rtnTemp;
-                          });
-  */    
+  
   sensors.push_back(&soc);
   sensors.push_back(&chargersInputPower);
   sensors.push_back(&batteryBankVoltage);
@@ -126,7 +111,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
 
   // add some sensors directly to prometheus export so we can track misc temps in grafana
   vector<std::unique_ptr<xmonit::OneWireThermSensor>> oneWireThermSensors;
-  xmonit::OneWireThermSensor::createMatching(oneWireThermSensors,conf);
+  xmonit::OneWireThermSensor::createSensors(conf,oneWireThermSensors);
 
   struct SensorMetric : automation::SensorListener {
     prometheus::Gauge *pGauge;
@@ -308,7 +293,6 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     &diningRoomAuxSwitch.simultaneousToggleOn});
 
   unsigned long nowMs = automation::millisecs();
-  //unsigned long syncTimeMs = nowMs;
 
   bool bFirstTime = true;
 

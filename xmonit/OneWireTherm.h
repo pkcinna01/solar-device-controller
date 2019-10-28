@@ -42,7 +42,7 @@ namespace xmonit {
       return maxCacheAgeMs;
     }
 
-    static void createMatching(vector<unique_ptr<OneWireThermSensor>>& sensors, Poco::Util::LayeredConfiguration& conf);
+    static void createSensors(Poco::Util::LayeredConfiguration& conf, vector<unique_ptr<OneWireThermSensor>>& sensors);
      
  };
 }

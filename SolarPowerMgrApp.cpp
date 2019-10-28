@@ -299,7 +299,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   cout << "============== End Device(s) Setup ============" << endl
        << endl;
 
-  w.printlnVectorObj("devices",devices,"",true);
+  //w.printlnVectorObj("devices",devices,"",true);
   //w.printlnVectorObj("constraints",Constraint::all(),"",true);
 
 

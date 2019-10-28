@@ -3,6 +3,9 @@
     <ifttt key="KEY-FROM-IFTTT-ACCOUNT_HERE"/>
     <maxInputPower>1800</maxInputPower>
     <maxOutputPower>2200</maxOutputPower>
+    <idlePauseMs>5000</idlePauseMs>
+    <errorPauseMs>60000</errorPauseMs>
+    <maxSensorCacheAgeMs>15000</maxSensorCacheAgeMs>
     <httpListener port="8096">
         <allowedHosts>
             <host>127.0.0.1</host>
@@ -10,6 +13,7 @@
         </allowedHosts>
     </httpListener>
     <oneWire path="/sys/bus/w1/devices" filter="28-*">
+        <maxCacheAgeMs>60000</maxCacheAgeMs>
         <titles>
             <title id="28-01145bb421b6" value="Sunroom Temp"/>
         </titles>

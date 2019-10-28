@@ -48,12 +48,6 @@ float OneWireThermSensor::getValueImpl() const {
     fTempCelcius = NAN;
   }
 
-  if ( fTempCelcius != fLastResult ) {
-    if ( pListener ) {
-      pListener->changed(this,fTempCelcius,fLastResult);
-    }
-    fLastResult = fTempCelcius;
-  }
   return fTempCelcius;
 }
 
@@ -62,9 +56,10 @@ void OneWireThermSensor::createMatching(vector<unique_ptr<OneWireThermSensor>>& 
   std::string filter = conf.getString("oneWire[@filter]", "28-*");
   std::string path = conf.getString("oneWire[@path]", "/sys/bus/w1/devices");
   std::string search = path + "/" + filter + "/w1_slave";
-
+  unsigned long maxCacheAgeMs = conf.getDouble("oneWire.maxCacheAgeMs",60000);
   std::set<string> fileNames;
   Poco::Glob::glob(search.c_str(),fileNames);
+  
   for( string fileName : fileNames ) {
       string name = Poco::Path(fileName).parent().makeFile().getFileName();
       string xpath = "oneWire.titles.title[@id='";
@@ -72,7 +67,7 @@ void OneWireThermSensor::createMatching(vector<unique_ptr<OneWireThermSensor>>& 
       xpath += "'][@value]";
       string title = conf.getString( xpath, name);
       cout << __PRETTY_FUNCTION__ << " name=" << name << ", fileName=" << fileName << ", title=" << title << ", xpath=" << xpath << endl;
-      sensors.push_back( make_unique<OneWireThermSensor>(name,fileName,title));
+      sensors.push_back( make_unique<OneWireThermSensor>(name,fileName,title, maxCacheAgeMs));
   }
 }
 

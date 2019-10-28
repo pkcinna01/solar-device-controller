@@ -5,25 +5,25 @@
 
 #include "xmonit.h"
 #include "../automation/sensor/Sensor.h"
+#include "../automation/Cacheable.h"
 
 #include "Poco/Util/LayeredConfiguration.h"
 
-#include <memory>
-
-
 namespace xmonit {
 
-  class OneWireThermSensor : public automation::Sensor {
+  class OneWireThermSensor : public automation::Sensor, public automation::Cacheable<float> {
   public:
     RTTI_GET_TYPE_IMPL(xmonit,OneWireThermSensor);
 
-    std::unique_ptr<automation::SensorListener> pListener;
     string title, filePath;
+    unsigned long maxCacheAgeMs;
 
-    OneWireThermSensor(const string &name, const string& filePath, const string &title ) : 
+    OneWireThermSensor(const string &name, const string& filePath, const string &title, const unsigned long maxCacheAgeMs = 60000 ) : 
       automation::Sensor(name,1),
       title(title),
-      filePath(filePath) {
+      filePath(filePath),
+      maxCacheAgeMs(maxCacheAgeMs) {
+        
     }
     
     virtual float getValueImpl() const override;
@@ -32,10 +32,18 @@ namespace xmonit {
       return title;
     }
 
+    virtual float getValueNow() const override {
+      float nowVal = ((Sensor*)this)->reset().getValue();
+      //cout << __PRETTY_FUNCTION__ << " nowVal=" << nowVal << endl;
+      return nowVal;
+    }
+
+    virtual unsigned long getMaxCacheAgeMs() const override {
+      return maxCacheAgeMs;
+    }
+
     static void createMatching(vector<unique_ptr<OneWireThermSensor>>& sensors, Poco::Util::LayeredConfiguration& conf);
      
-    private:
-    mutable float fLastResult{0};
  };
 }
 #endif 

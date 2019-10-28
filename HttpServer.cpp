@@ -86,7 +86,7 @@ namespace xmonit
       } else {  
         if ( vecPath.empty() ) {
 
-          std::string strMsg("Rest endpoint required (device or app): ");
+          std::string strMsg("Rest endpoint required (device, constraint, sensor, capability, or app): ");
           strMsg += req.getURI();
           cerr << __PRETTY_FUNCTION__ << strMsg << endl;
           writeJsonResp( out, -8, strMsg );
@@ -154,12 +154,13 @@ namespace xmonit
               {
                 // first see if its a simple query from openhab so we can skip expensive JSON parsing and query
                 automation::PowerSwitch* pSwitch = nullptr;
+
                 if ( bTextPlainResp && fields.size() == 1 
                      && SINGLE_FIELD_QUERY_RE.match(fields[0]) 
                      && (pSwitch=dynamic_cast<automation::PowerSwitch*>(pItem)) ) {
-                  //TODO - enhance if needed... currently openhab makes lots of calls for "on" and "enabled"
+
                   const string& field = fields[0];
-                  //cout << "field: " << field << endl;
+
                   if ( field == "on" ) {
                     out << pSwitch->isOn();
                   } else if ( field == "constraint.enabled" ) {
@@ -175,41 +176,43 @@ namespace xmonit
                   json::JsonStreamWriter w(ssp);
                   pItem->print(w,bVerbose||!fields.empty(),false);
                   JSON::Parser parser;
+
                   try {
-                  Poco::Dynamic::Var itemVar = parser.parse(ssp.ss); //TODO - Handle "nan" numbers
-                  Poco::JSON::Object::Ptr pJson = itemVar.extract<Poco::JSON::Object::Ptr>();
-                  if ( bTextPlainResp ) {
-                    if ( i > 0 ) {
-                      out << endl;
-                    }                    
-                    for ( int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++ ) { 
-                      if ( fieldIndex > 0 ) {
-                        out << ",";
+                    Poco::Dynamic::Var itemVar = parser.parse(ssp.ss); //TODO - Handle "nan" numbers
+                    Poco::JSON::Object::Ptr pJson = itemVar.extract<Poco::JSON::Object::Ptr>();
+                    if ( bTextPlainResp ) {
+                      if ( i > 0 ) {
+                        out << endl;
                       }
-                      Poco::DynamicAny var = Poco::JSON::Query(pJson).find(fields[fieldIndex]);
-                      if ( !var.isEmpty() ) {
-                        out << var.toString();
-                      } else {
-                        out << "NULL";
+                      Poco::JSON::Query query(pJson);      
+                      for ( int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++ ) { 
+                        if ( fieldIndex > 0 ) {
+                          out << ",";
+                        }
+                        Poco::DynamicAny var = query.find(fields[fieldIndex]);
+                        if ( !var.isEmpty() ) {
+                          out << var.toString();
+                        } else {
+                          out << "NULL";
+                        }
                       }
-                    }
-                  } else {
-                    if ( fields.empty() ) {
-                      itemArr.add(pJson);
                     } else {
-                      Poco::JSON::Object jObj;
-                      fields.push_back("id");
-                      if ( itemType == "constraint" ) {
-                        fields.push_back("title");
+                      if ( fields.empty() ) {
+                        itemArr.add(pJson);
                       } else {
-                        fields.push_back("name");
+                        Poco::JSON::Object jObj;
+                        fields.push_back("id");
+                        if ( itemType == "constraint" ) {
+                          fields.push_back("title");
+                        } else {
+                          fields.push_back("name");
+                        }
+                        for ( string field : fields) {
+                          jObj.set(field,Poco::JSON::Query(pJson).find(field));
+                        }
+                        itemArr.add(jObj);
                       }
-                      for ( string field : fields) {
-                        jObj.set(field,Poco::JSON::Query(pJson).find(field));
-                      }
-                      itemArr.add(jObj);
                     }
-                  }
                   } catch (const Poco::Exception &ex) {
                     cerr << __PRETTY_FUNCTION__ << "Failed extrating JSON data from: " << endl;
                     cerr << ssp.ss.str() << endl;
@@ -235,35 +238,33 @@ namespace xmonit
             string strVal = pReqObj->get("value");
 
             for ( int i = 0; i < foundVec.size(); i++ ) {
+
               AttributeContainer* pItem = foundVec[i];
-              //automation::PowerSwitch* pSwitch = dynamic_cast<automation::PowerSwitch*>(foundVec[i]);
-              //if ( pSwitch ) {
-              {
-                cout << "Setting " << itemType << " '" << pItem->getTitle() << "' " << strKey << "=" << strVal << endl;
-                stringstream ss;
-                automation::SetCode statusCode = pItem->setAttribute(strKey.c_str(), strVal.c_str(), &ss);
-                if ( !respMsg.empty() ) {
-                  respMsg += " | ";
-                }
-                respMsg += ss.str();
-                if ( respCode == 0 ) { // don't set respCode back to zero if an error already occurred for prior item
-                  respCode = (int)statusCode; 
-                }
-                json::StringStreamPrinter ssp;
-                json::JsonStreamWriter w(ssp);
-                pItem->print(w,true);
-                JSON::Parser parser;
-                Poco::Dynamic::Var itemVar = parser.parse(ssp.ss); //TODO - Handle "nan" numbers
-                Poco::JSON::Object::Ptr itemJson = itemVar.extract<Poco::JSON::Object::Ptr>();
-                Poco::DynamicStruct rtnJson;
-                rtnJson.insert("id",pItem->id);
-                rtnJson.insert("name",pItem->getTitle());
-                rtnJson.insert("key",strKey);
-                rtnJson.insert("value",Poco::JSON::Query(itemJson).find(strKey));
-                rtnJson.insert("statusCode",(int)statusCode);
-                itemArr.add(rtnJson);
+              cout << "Setting " << itemType << " '" << pItem->getTitle() << "' " << strKey << "=" << strVal << endl;
+              stringstream ss;
+              automation::SetCode statusCode = pItem->setAttribute(strKey.c_str(), strVal.c_str(), &ss);
+              if ( !respMsg.empty() ) {
+                respMsg += " | ";
               }
+              respMsg += ss.str();
+              if ( respCode == 0 ) { // don't set respCode back to zero if an error already occurred for prior item
+                respCode = (int)statusCode; 
+              }
+              json::StringStreamPrinter ssp;
+              json::JsonStreamWriter w(ssp);
+              pItem->print(w,true);
+              JSON::Parser parser;
+              Poco::Dynamic::Var itemVar = parser.parse(ssp.ss); //TODO - Handle "nan" numbers
+              Poco::JSON::Object::Ptr itemJson = itemVar.extract<Poco::JSON::Object::Ptr>();
+              Poco::DynamicStruct rtnJson;
+              rtnJson.insert("id",pItem->id);
+              rtnJson.insert("name",pItem->getTitle());
+              rtnJson.insert("key",strKey);
+              rtnJson.insert("value",Poco::JSON::Query(itemJson).find(strKey));
+              rtnJson.insert("statusCode",(int)statusCode);
+              itemArr.add(rtnJson);
             }
+
             if ( respCode != 0 && respMsg.empty() ) {
               respMsg = (respCode == (int)SetCode::Ignored) ? "Key not found" : "ERROR";
             }
@@ -273,7 +274,7 @@ namespace xmonit
             respStatus = HTTPResponse::HTTP_BAD_REQUEST;
             out << "Invalid " << itemType << " http METHOD: '" << strMethod << "'. URI: " << req.getURI() << endl;
             cerr << __PRETTY_FUNCTION__ << " Invalid " << itemType << " METHOD: '" << strMethod << "'. URI: " << req.getURI() << endl;
-          }
+          }          
         } else if ( vecPath[0] == "app" ) {    
           if ( strMethod == "get" ) {
             if ( fields.empty() || fields.size() == 1 && Poco::toLower(fields[0]) == "enabled" ) {
@@ -331,12 +332,14 @@ namespace xmonit
     //cerr << __PRETTY_FUNCTION__ << "[" << std::this_thread::get_id() << "] end" << endl;
   }
 
+
   void DefaultRequestHandler::writeJsonResp(ostream& out, int statusCode, const string& statusMsg, Poco::JSON::Object& obj) {
     obj.set("respCode", statusCode);
     obj.set("respMsg", statusMsg);
     obj.stringify(out, 2);
     out << endl;
   }
+
 
   void DefaultRequestHandler::writeJsonResp(ostream& out, int statusCode, const string& statusMsg) {
     Poco::JSON::Object obj(true);  

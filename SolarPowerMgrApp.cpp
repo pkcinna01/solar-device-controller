@@ -15,6 +15,7 @@
 #include "automation/constraint/TimeRangeConstraint.h"
 #include "automation/constraint/TransitionDurationConstraint.h"
 #include "automation/device/Device.h"
+#include "automation/Cacheable.h"
 #include "xmonit/OneWireTherm.h"
 
 #include "SolarMetrics.h"
@@ -56,7 +57,11 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   //}
   static float maxInputPower = (float) conf.getDouble("maxInputPower",1700); // load is kept below available input power or this configured max
   static float maxOutputPower = (float) conf.getDouble("maxOutputPower",2200); // load is kept below available input power or this configured max
-                                                                             // workaround for defective thermal fuse tripping too soon
+                                                                               // workaround for defective thermal fuse tripping too soon
+  ulong maxSensorCacheAgeMs = conf.getDouble("maxSensorCacheAgeMs",15000); // min period before reloading prometheus metrics from solar-web-service
+  ulong errorPauseMs = conf.getDouble("errorPauseMs",60000);  
+  ulong idlePauseMs = conf.getDouble("idlePauseMs",5000);
+
   cout << "app.xml: maxInputPower=" << maxInputPower << endl;
 
   static auto metricFilter = [](const Prometheus::Metric &metric) { return metric.name.find("solar") == 0 
@@ -122,8 +127,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   // add some sensors directly to prometheus export so we can track misc temps in grafana
   vector<std::unique_ptr<xmonit::OneWireThermSensor>> oneWireThermSensors;
   xmonit::OneWireThermSensor::createMatching(oneWireThermSensors,conf);
-  prometheus::Family<Gauge> *pSensorGauges = &(BuildGauge().Name("solar_power_mgr_sensor").Labels({{"type", "OneWireTherm"}}).Register(*prometheusRegistry));
-  
+
   struct SensorMetric : automation::SensorListener {
     prometheus::Gauge *pGauge;
     SensorMetric(prometheus::Family<Gauge> *pSensorGauges, map<string,string>& labels){
@@ -134,8 +138,15 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     }   
   };
 
+  prometheus::Family<Gauge> *pSensorGauges = &(BuildGauge().Name("solar_power_mgr_sensor").Labels({{"type", "statistic"}}).Register(*prometheusRegistry));
+  for( auto& s : sensors) {
+    map<string,string> labels = {{"name",s->name}};
+    s->pListener = unique_ptr<SensorMetric>(new SensorMetric(pSensorGauges,labels));
+  }
+  
   pSensorGauges = &(BuildGauge().Name("solar_power_mgr_sensor").Labels({{"type", "OneWireTherm"}}).Register(*prometheusRegistry));
   for( auto& s : oneWireThermSensors) {
+    sensors.push_back(s.get());
     map<string,string> labels = {{"metric", "celciusTemp"},{"name",s->name}, {"title",s->getTitle()}};
     s->pListener = unique_ptr<SensorMetric>(new SensorMetric(pSensorGauges,labels));
   }
@@ -263,28 +274,13 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     }
   } gpioPlantLightsSwitch;
 
-  /*static struct RaspberryPi1Fan : xmonit::GpioPowerSwitch
-  {
-
-    AtLeast<float, Sensor &> fanOnThreashold{144, pi1Temp};
-    PowerSwitchMetrics metrics;
-
-    RaspberryPi1Fan() : xmonit::GpioPowerSwitch("jaxpi1 Fan", 14)
-    {
-      fanOnThreashold.setPassDelayMs( 30*SECONDS ).setFailDelayMs( 2*MINUTES ).setFailMargin(4);
-      setConstraint(&fanOnThreashold);
-      metrics.init(this);
-    }
-  } pi1Fan;*/
-
   devices.push_back( &gpioPlantLightsSwitch );
   devices.push_back( &familyRoomAuxSwitch );
   devices.push_back( &diningRoomAuxSwitch );
   devices.push_back( &sunroomHvacSwitch );
   devices.push_back( &familyRoomHvac1Switch );
   devices.push_back( &familyRoomHvac2Switch );
-  //devices.push_back( &pi1Fan );
-
+  
   json::JsonSerialWriter w;
   string strLogBuffer;
 
@@ -335,24 +331,48 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
   Exposer exposer{conf.getString("prometheus[@exportBindAddress]", "127.0.0.1:8095")};
 
   exposer.RegisterCollectable(prometheusRegistry);
-  ulong lastResultTimeMs = 0, maxCacheAgeMs = 30000;
 
   while ( iSignalCaught == 0)
   {
-    { 
-      //TODO prometheus c++ client doesn't have a way to get value only on a pull so sample every 30 seconds for now
-      Poco::Mutex::ScopedLock lock(httpServer.mutex); // device print from httpserver thread will access sensors when it prints constraints
-      ulong nowMs = automation::millisecs();
-      if ( nowMs - lastResultTimeMs > maxCacheAgeMs ) {
-        for ( auto& s : oneWireThermSensors ) {
-          s->reset();
-          s->getValue(); 
+
+    static ulong lastResultTimeMs = 0;
+    
+    ulong nowMs = automation::millisecs();
+
+    {
+      Poco::Mutex::ScopedLock lock(httpServer.mutex);
+      
+      if ( nowMs - lastResultTimeMs > maxSensorCacheAgeMs ) {
+        prometheusDs.loadMetrics(); 
+        for ( auto& s : sensors ) {
+          if( !dynamic_cast<automation::Cacheable<float>*>(s) ) {
+            s->reset().getValue(); // arduino compatible sensors cache value by default so call reset to clear cached value
+          }
+        }
+        for ( auto& d : devices ) {
+          automation::PowerSwitch *pPowerSwitch = dynamic_cast<automation::PowerSwitch*>(d);
+          if ( pPowerSwitch ) {
+            // calling isOn will force openhab and gpio switches to check if 
+            // local cached value needs to be updated with remote value.  
+            // Prometheus and Grafana need switch state even if not in solarTimeRange
+            pPowerSwitch->isOn(); 
+          }
+        }
+        lastResultTimeMs = nowMs;
+      }
+
+      for ( auto& s : sensors ) {
+        automation::Cacheable<float>* pCacheable = dynamic_cast<automation::Cacheable<float>*>(s);
+        if ( pCacheable ) {
+          pCacheable->getCachedValue(); // each sensor tracks its own last cached time
         }
       }
     }
 
-    if ( !solarTimeRange.test() || !bEnabled ) {
-      automation::sleep(5 * 1000);
+    bool bProcessDevices = solarTimeRange.test() && bEnabled;
+
+    if ( !bProcessDevices ) {
+      automation::sleep(idlePauseMs);
       automation::logBufferToString(strLogBuffer);
       if (!strLogBuffer.empty())
       {
@@ -361,15 +381,11 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       automation::clearLogBuffer();
       continue;
     }
+
     int iDeviceErrorCnt = 0;
     
     vector<Device*> turnedOffSwitches;
     
-    {
-      Poco::Mutex::ScopedLock lock(httpServer.mutex); // device print from httpserver thread will access sensors when it prints constraints
-      prometheusDs.loadMetrics(); 
-    }
-
     for (automation::Device *pDevice : devices)
     {
       Poco::Mutex::ScopedLock lock(httpServer.mutex);
@@ -398,9 +414,9 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
         } 
         cout << ", TIME: " << DateTimeFormatter::format(LocalDateTime(), DateTimeFormat::SORTABLE_FORMAT) << endl;
         cout << "SENSORS: [";
-        for (auto s : {soc, chargersInputPower, requiredPowerTotal, batteryBankVoltage})
+        for (auto s : {&soc, &chargersInputPower, &requiredPowerTotal, &batteryBankVoltage})
         {
-          cout << '"' << s.getTitle() << "\"=" << s.getValue() << ",";
+          cout << '"' << s->getTitle() << "\"=" << s->getValue() << ",";
         }
         cout << "]" << std::endl
               << strLogBuffer << std::flush;
@@ -417,8 +433,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
       std::rotate(it, it + 1, devices.end());
     }
 
-
-    unsigned long nowMs = automation::millisecs();
+    nowMs = automation::millisecs();
 
     if (bFirstTime)
     {
@@ -426,7 +441,7 @@ int SolarPowerMgrApp::main(const std::vector<std::string> &args)
     }
 
     // wait 60 seconds if any request fails (occasional DNS failure or network connectivity)
-    automation::sleep(iDeviceErrorCnt ? 60 * 1000 : 1500);
+    automation::sleep(iDeviceErrorCnt ? errorPauseMs : maxSensorCacheAgeMs);
   };
 
   cout << "====================================================" << endl;

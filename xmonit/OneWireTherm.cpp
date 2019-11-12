@@ -31,16 +31,16 @@ float OneWireThermSensor::getValueImpl() const {
     
     ifstream fis(filePath, std::ios::in);
     const static Poco::RegularExpression HAS_YES_SUFFIX(".*YES$");
-    const static Poco::RegularExpression HAS_5DIGIT_TEMP_SUFFIX(".*t=[0-9]{5}$");
+    const static Poco::RegularExpression HAS_5DIGIT_TEMP_SUFFIX(".*t=-?[0-9]+$");
 
     if ( !std::getline(fis,line) ) {
       throw Poco::Exception(errorFormatter("Failed reading first line"));
     } else if ( !HAS_YES_SUFFIX.match(line) ) {
-      throw Poco::Exception(errorFormatter("Expected \".* YES\" at end of first line"));
+      throw Poco::Exception(errorFormatter("Expected regex \".*YES\" at end of first line. [")+ line + "]");
     } else if ( !std::getline(fis,line) ) {
       throw Poco::Exception(errorFormatter("Failed reading second line"));
     } else if ( !HAS_5DIGIT_TEMP_SUFFIX.match(line) ) {
-      throw Poco::Exception(errorFormatter("Expected \".* t=[0-9]{5}$\" on second line"));
+      throw Poco::Exception(errorFormatter("Expected regex \".*t=-?[0-9]+$\" on second line. [") + line + "]");
     } else {
       int iTemperatureData = Poco::NumberParser::parse(line.substr(line.size()-5));
       fTempCelcius = iTemperatureData / 1000.0;
